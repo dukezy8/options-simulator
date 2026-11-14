@@ -1,0 +1,1437 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>期权模拟交易 · A股ETF期权模拟器</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0d1420; color: #e6edf3; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 14px; line-height: 1.5; }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 12px 12px 40px; }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
+  header h1 { font-size: 20px; color: #fff; }
+  .pill { font-size: 12px; padding: 3px 10px; border-radius: 12px; background: #1c2940; color: #f5a623; border: 1px solid #2a3a55; }
+  .pill.live { color: #2ebd85; border-color: #1d5c46; }
+  .note { font-size: 12px; color: #9fb0c3; }
+  .btn { background: #24344d; color: #e6edf3; border: 1px solid #33465f; border-radius: 6px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
+  .btn:hover { background: #2e415f; }
+  .btn.gold { background: #f5a623; color: #1a1206; border-color: #f5a623; font-weight: 700; }
+  .btn.gold:hover { background: #ffb63d; }
+  .btn.danger { background: transparent; color: #e5534b; border-color: #5a2b28; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .card { background: #16202e; border: 1px solid #223145; border-radius: 10px; padding: 12px; margin-bottom: 12px; }
+  .card h2 { font-size: 15px; color: #fff; margin-bottom: 8px; }
+  .acct { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .stat { background: #101a29; border: 1px solid #223145; border-radius: 8px; padding: 8px 10px; }
+  .stat .k { font-size: 11px; color: #9fb0c3; }
+  .stat .v { font-size: 16px; font-weight: 700; color: #fff; }
+  .stat .v.neg { color: #e5534b; } .stat .v.pos { color: #2ebd85; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { padding: 5px 10px; border-radius: 16px; background: #1c2940; border: 1px solid #2a3a55; color: #c9d6e3; font-size: 13px; cursor: pointer; white-space: nowrap; }
+  .chip.on { background: #f5a623; border-color: #f5a623; color: #1a1206; font-weight: 700; }
+  .tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+  .tab-btn { flex: 1; padding: 9px 0; text-align: center; border-radius: 8px; background: #16202e; border: 1px solid #223145; color: #9fb0c3; cursor: pointer; font-size: 14px; }
+  .tab-btn.on { background: #f5a623; color: #1a1206; font-weight: 700; border-color: #f5a623; }
+  .mr-band { position: relative; height: 26px; background: #101a29; border-radius: 6px; margin: 8px 0 4px; overflow: hidden; }
+  .mr-band .b2 { position: absolute; top: 0; bottom: 0; background: rgba(245,166,35,.18); }
+  .mr-band .b1 { position: absolute; top: 0; bottom: 0; background: rgba(245,166,35,.45); }
+  .mr-band .spot { position: absolute; top: 0; bottom: 0; width: 2px; background: #fff; }
+  .mr-band .leg { position: absolute; top: 0; bottom: 0; width: 2px; background: #e5534b; }
+  .mr-legend { font-size: 12px; color: #9fb0c3; display: flex; flex-wrap: wrap; gap: 12px; }
+  .mr-legend b { color: #f5a623; }
+  table.chain { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.chain th { color: #9fb0c3; font-weight: 400; font-size: 12px; padding: 6px 4px; border-bottom: 1px solid #223145; }
+  table.chain td { padding: 7px 4px; text-align: center; border-bottom: 1px solid #1a2636; }
+  table.chain td.strike { font-weight: 700; color: #fff; }
+  table.chain tr.atm td.strike { color: #f5a623; }
+  table.chain tr.insigma td { background: rgba(245,166,35,.07); }
+  td.px { cursor: pointer; border-radius: 4px; }
+  td.px:hover { background: #24344d; }
+  td.px.bid { color: #2ebd85; } td.px.ask { color: #e5534b; }
+  td.px.no { color: #5a6b80; cursor: default; }
+  td.px.sel { background: #f5a623 !important; color: #1a1206 !important; font-weight: 700; }
+  .tpls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .tpl-btn { padding: 9px 4px; text-align: center; border-radius: 8px; background: #1c2940; border: 1px solid #2a3a55; color: #e6edf3; cursor: pointer; font-size: 13px; }
+  .tpl-btn:hover { border-color: #f5a623; color: #f5a623; }
+  .tpl-btn small { display: block; color: #9fb0c3; font-size: 11px; }
+  .legs { margin-bottom: 8px; }
+  .leg-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; background: #101a29; border-radius: 6px; margin-bottom: 4px; font-size: 13px; }
+  .leg-row .x { color: #e5534b; cursor: pointer; padding: 0 6px; }
+  .calc { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 10px 0; }
+  .calc .c { background: #101a29; border-radius: 6px; padding: 7px 9px; }
+  .calc .k { font-size: 11px; color: #9fb0c3; } .calc .v { font-size: 15px; font-weight: 700; }
+  .calc .v.neg { color: #e5534b; } .calc .v.pos { color: #2ebd85; }
+  canvas.payoff { width: 100%; height: 170px; display: block; background: #101a29; border-radius: 8px; }
+  .rowbtns { display: flex; gap: 8px; margin-top: 10px; }
+  .rowbtns .btn { flex: 1; padding: 10px 0; font-size: 15px; }
+  .qty { display: inline-flex; align-items: center; gap: 10px; }
+  .qty button { width: 28px; height: 28px; border-radius: 6px; background: #24344d; border: 1px solid #33465f; color: #fff; font-size: 16px; cursor: pointer; }
+  .pos { border: 1px solid #223145; border-radius: 8px; padding: 10px; margin-bottom: 8px; background: #101a29; }
+  .pos .top { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
+  .pos .hint { color: #2ebd85; font-size: 12px; margin-top: 4px; }
+  .pos .nums { display: flex; gap: 14px; font-size: 12px; color: #9fb0c3; margin-top: 4px; flex-wrap: wrap; }
+  .pos .nums b { color: #e6edf3; }
+  .trade-row { display: flex; justify-content: space-between; gap: 8px; padding: 8px 4px; border-bottom: 1px solid #1a2636; font-size: 13px; }
+  .trade-row .amt.pos { color: #2ebd85; } .trade-row .amt.neg { color: #e5534b; }
+  .empty { color: #5a6b80; text-align: center; padding: 18px 0; font-size: 13px; }
+  footer { font-size: 12px; color: #7d8ea3; line-height: 1.8; }
+  footer b { color: #c9d6e3; }
+  @media (max-width: 640px) { .acct { grid-template-columns: repeat(2, 1fr); } .calc { grid-template-columns: repeat(2, 1fr); } .tpls { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>期权模拟交易</h1>
+    <span class="pill" id="statusLabel">加载中…</span>
+    <span class="note" id="dataNote"></span>
+    <span style="flex:1"></span>
+    <button class="btn" id="btnRefresh">刷新行情</button>
+  </header>
+
+  <div class="card">
+    <div class="acct">
+      <div class="stat"><div class="k">净值</div><div class="v" id="statEquity">--</div></div>
+      <div class="stat"><div class="k">可用资金</div><div class="v" id="statAvail">--</div></div>
+      <div class="stat"><div class="k">占用保证金</div><div class="v" id="statMargin">--</div></div>
+      <div class="stat"><div class="k">浮动盈亏</div><div class="v" id="statFloating">--</div></div>
+      <div class="stat"><div class="k">累计盈亏</div><div class="v" id="statPnl">--</div></div>
+    </div>
+    <div class="note" style="margin-top:8px">模拟交易 · 虚拟资金 ¥1,000,000 · 账户只存在本浏览器（localStorage），换设备不同步、清缓存即丢。不构成投资建议。</div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab-btn on" data-tab="trade">交易</div>
+    <div class="tab-btn" data-tab="pos">持仓 <span id="posCount"></span></div>
+    <div class="tab-btn" data-tab="trades">成交记录</div>
+  </div>
+
+  <section id="tab-trade">
+    <div class="card">
+      <div class="chips" id="etfChips"></div>
+      <div class="chips" id="expiryChips" style="margin-top:8px"></div>
+    </div>
+
+    <div class="card" id="moveCard" style="display:none">
+      <h2>IV 预期波动区间 <span class="note" id="mrMeta"></span></h2>
+      <div class="mr-band" id="mrBand"></div>
+      <div class="mr-legend">
+        <span>±1σ (68%)：<b id="mr1s">--</b></span>
+        <span>±2σ (95%)：<b id="mr2s">--</b></span>
+        <span>现价：<b id="mrSpot">--</b></span>
+      </div>
+      <div class="note" style="margin-top:4px">区间 = 现价 × (1 ± IV × √(DTE/365))，IV 取该到期日平值附近合约 IV（缺失时用 IV30）。68% 概率到期价格落在金色带内，红线为订单腿行权价。</div>
+    </div>
+
+    <div class="card">
+      <h2>期权链 <span class="note">点买价 = 按买价卖出 · 点卖价 = 按卖价买入 · 距到期不足 7 天不可新开</span></h2>
+      <table class="chain">
+        <thead><tr><th>认购买价</th><th>认购卖价</th><th>行权价</th><th>认沽买价</th><th>认沽卖价</th></tr></thead>
+        <tbody id="chainBody"><tr><td colspan="5" class="empty">加载中…</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>策略模板 · 一键组单</h2>
+      <div class="tpls">
+        <div class="tpl-btn" data-tpl="sellPut">卖 Put<small>0.20Δ · 收租</small></div>
+        <div class="tpl-btn" data-tpl="buyCall">买 Call<small>平值 · 看涨</small></div>
+        <div class="tpl-btn" data-tpl="bullPut">牛市认沽价差<small>卖 0.20Δ / 买 0.10Δ</small></div>
+        <div class="tpl-btn" data-tpl="bearCall">熊市认购价差<small>卖 0.20Δ / 买 0.10Δ</small></div>
+        <div class="tpl-btn" data-tpl="strangle">卖跨式<small>双卖 0.20Δ</small></div>
+        <div class="tpl-btn" data-tpl="condor">铁鹰<small>双卖 0.20Δ + 双买 0.10Δ</small></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>订单条 <span class="note" id="ticketHint">点期权链报价或选策略模板组单</span></h2>
+      <div class="legs" id="ticketLegs"><div class="empty">尚未组单</div></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <span>张数 <span class="qty"><button id="qtyMinus">−</button><b id="qtyVal">1</b><button id="qtyPlus">＋</button></span></span>
+        <span><button class="btn" id="btnClearTicket">清空订单</button></span>
+      </div>
+      <div class="calc" id="ticketCalc" style="display:none">
+        <div class="c"><div class="k">权利金流</div><div class="v" id="calcPremium">--</div></div>
+        <div class="c"><div class="k">手续费</div><div class="v" id="calcFees">--</div></div>
+        <div class="c"><div class="k">保证金预估</div><div class="v" id="calcMargin">--</div></div>
+        <div class="c"><div class="k">成功概率 POP</div><div class="v" id="calcPop">--</div></div>
+        <div class="c"><div class="k">最大盈利</div><div class="v pos" id="calcMaxP">--</div></div>
+        <div class="c"><div class="k">最大亏损</div><div class="v neg" id="calcMaxL">--</div></div>
+        <div class="c"><div class="k">盈亏平衡点</div><div class="v" id="calcBE" style="font-size:13px">--</div></div>
+        <div class="c"><div class="k">盈亏平衡点位置</div><div class="v" id="calcBEIn" style="font-size:13px">--</div></div>
+      </div>
+      <canvas class="payoff" id="payoffCanvas" width="880" height="170" style="display:none"></canvas>
+      <div class="rowbtns">
+        <button class="btn gold" id="btnSubmit">下单</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-pos" style="display:none">
+    <div class="card">
+      <h2>组合 Greeks</h2>
+      <div class="calc" style="grid-template-columns:repeat(3,1fr);margin:0">
+        <div class="c"><div class="k">组合 Δ（标的每涨 1 元）</div><div class="v" id="gDelta">--</div></div>
+        <div class="c"><div class="k">θ（每日时间损耗）</div><div class="v" id="gTheta">--</div></div>
+        <div class="c"><div class="k">Vega（IV 涨 1%）</div><div class="v" id="gVega">--</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>持仓</h2>
+      <div id="posList"><div class="empty">暂无持仓</div></div>
+      <div class="rowbtns"><button class="btn danger" id="btnReset">一键重置账户</button></div>
+    </div>
+  </section>
+
+  <section id="tab-trades" style="display:none">
+    <div class="card">
+      <h2>成交记录</h2>
+      <div id="tradeList"><div class="empty">暂无成交记录</div></div>
+    </div>
+  </section>
+
+  <footer>
+    <b>口径说明：</b>成交吃全价差（买入按 ask、卖出按 bid），持仓按中间价 mid=(bid+ask)/2 估值；手续费买 4 元/张、卖 5 元/张；裸卖保证金按交易所公式 ×1.1 安全系数（认购/认沽保证金 = [结算价 + Max(12%×标的收盘价 − 虚值额，7%×标的收盘价)] × 10000，认沽另取与标的收盘价较小值；结算价以最新价代理），价差按最大亏损计保证金；Greeks 本地 BS 算（r=2%，sigma 用合约 mid 反推 IV，θ 年化除以 252 折日损）；1σ 区间与 POP 为 BS 估算、只作展示，不影响成交与保证金；到期按标的收盘价欧式现金结算。<br>
+    <b>模拟交易 · 虚拟资金 100 万 · 非实盘 · 不构成投资建议。</b>数据先读内置 2026-11-13 收盘链，实时链（sim-chains.json）上线后自动切换。
+  </footer>
+</div>
+<script>
+'use strict';
+/**
+ * 模拟交易核心纯函数（不引用 wx，可被 node 直接 require 做冒烟测试）。
+ *
+ * 口径（与网页版模拟器一致）：
+ * - 成交吃全价差：买入按 ask、卖出按 bid；持仓按 mid=(bid+ask)/2 估值。
+ * - 手续费：买 4 元/张、卖 5 元/张。
+ * - 裸卖保证金：交易所公式 ×1.1 安全系数。
+ *   认购/认沽保证金 = [结算价 + Max(12%×标的收盘价 − 虚值额, 7%×标的收盘价)] × 10000，
+ *   认沽另取与标的收盘价×10000 的较小值。
+ *   交叉校验（2026-11-09 实盘保证金/张，结算价以现价代理，10 腿）：
+ *   公式原值偏差 -14.4%~+3.9%，×1.1 后约 -5%~+14%，偏保守可接受。
+ *   简化口径"权利金 + 15%×标的价"实测偏差 +39%~+86%，已弃用。
+ * - 价差按最大亏损计保证金；Greeks 本地 BS 算（r=2%，sigma 用合约 mid 反推 IV，
+ *   theta 年化，除以 252 折日损）。
+ */
+var R = 0.02;              // 无风险利率
+var MULT = 10000;          // 合约乘数（元/张 = 价 × 10000）
+var FEE_BUY = 4;           // 买入手续费 元/张
+var FEE_SELL = 5;          // 卖出手续费 元/张
+var MARGIN_UPLIFT = 1.10;  // 保证金安全系数
+
+function normCdf(x) {
+  // 标准正态 CDF，Abramowitz-Stegun 7.1.26（Φ 近似，误差 < 1.5e-7）
+  var b1 = 0.319381530, b2 = -0.356563782, b3 = 1.781477937;
+  var b4 = -1.821255978, b5 = 1.330274429, p = 0.2316419;
+  var ax = Math.abs(x);
+  var t = 1 / (1 + p * ax);
+  var pdf = Math.exp(-0.5 * ax * ax) / Math.sqrt(2 * Math.PI);
+  var y = 1 - pdf * ((((b5 * t + b4) * t + b3) * t + b2) * t + b1) * t;
+  return x < 0 ? 1 - y : y;
+}
+
+function normPdf(x) {
+  return Math.exp(-0.5 * x * x) / Math.sqrt(2 * Math.PI);
+}
+
+function d1d2(S, K, T, sigma) {
+  var d1 = (Math.log(S / K) + (R + 0.5 * sigma * sigma) * T) / (sigma * Math.sqrt(T));
+  var d2 = d1 - sigma * Math.sqrt(T);
+  return { d1: d1, d2: d2 };
+}
+
+// cp: 'C' 认购 / 'P' 认沽；T 以年计；sigma 为小数
+function bsPrice(cp, S, K, T, sigma) {
+  if (T <= 0) return cp === 'C' ? Math.max(S - K, 0) : Math.max(K - S, 0);
+  var d = d1d2(S, K, T, sigma);
+  if (cp === 'C') return S * normCdf(d.d1) - K * Math.exp(-R * T) * normCdf(d.d2);
+  return K * Math.exp(-R * T) * normCdf(-d.d2) - S * normCdf(-d.d1);
+}
+
+// theta 为年化量（除以 252 折日损）；vega 按波动率 1.0（即 100%）计
+function bsGreeks(cp, S, K, T, sigma) {
+  if (T <= 0 || sigma <= 0) return { delta: 0, gamma: 0, theta: 0, vega: 0 };
+  var d = d1d2(S, K, T, sigma);
+  var sqrtT = Math.sqrt(T);
+  var gamma = normPdf(d.d1) / (S * sigma * sqrtT);
+  var vega = S * normPdf(d.d1) * sqrtT;
+  var theta;
+  if (cp === 'C') {
+    theta = -(S * normPdf(d.d1) * sigma) / (2 * sqrtT)
+      - R * K * Math.exp(-R * T) * normCdf(d.d2);
+    return { delta: normCdf(d.d1), gamma: gamma, theta: theta, vega: vega };
+  }
+  theta = -(S * normPdf(d.d1) * sigma) / (2 * sqrtT)
+    + R * K * Math.exp(-R * T) * normCdf(-d.d2);
+  return { delta: normCdf(d.d1) - 1, gamma: gamma, theta: theta, vega: vega };
+}
+
+// 由 mid 反推 IV（二分法）；mid 低于内在价值或无解返回 null
+function impliedVol(cp, mid, S, K, T) {
+  if (!mid || mid <= 0 || T <= 0) return null;
+  var intrinsic = cp === 'C' ? Math.max(S - K, 0) : Math.max(K - S, 0);
+  if (mid <= intrinsic) return null;
+  var lo = 0.001, hi = 3.0;
+  if (bsPrice(cp, S, K, T, hi) < mid) return null;
+  for (var i = 0; i < 60; i++) {
+    var m = (lo + hi) / 2;
+    if (bsPrice(cp, S, K, T, m) < mid) lo = m; else hi = m;
+  }
+  return (lo + hi) / 2;
+}
+
+function validQuote(c) {
+  return c && c.bid > 0 && c.ask > 0 && c.bid < c.ask;
+}
+
+function midOf(c) {
+  if (!validQuote(c)) return null;
+  return (c.bid + c.ask) / 2;
+}
+
+// 成交价：买按 ask、卖按 bid；无有效报价返回 null
+function fillPrice(leg) {
+  if (!validQuote(leg)) return null;
+  return leg.side === 'buy' ? leg.ask : leg.bid;
+}
+
+// 单腿权利金流（元）：卖出为正（收）、买入为负（付）
+function legPremiumFlow(leg, qty) {
+  var p = fillPrice(leg);
+  if (p === null) return null;
+  return (leg.side === 'sell' ? p : -p) * qty * MULT;
+}
+
+function legFees(leg, qty) {
+  return (leg.side === 'sell' ? FEE_SELL : FEE_BUY) * qty;
+}
+
+// 交易所公式裸卖保证金（单腿，元/组，qty 张）
+function exchangeMarginShort(cp, S, K, settle, qty) {
+  var otm = cp === 'C' ? Math.max(K - S, 0) : Math.max(S - K, 0);
+  var m = (settle + Math.max(0.12 * S - otm, 0.07 * S)) * MULT;
+  if (cp === 'P') m = Math.min(m, S * MULT);
+  return m * qty * MARGIN_UPLIFT;
+}
+
+// 到期日内在价值
+function intrinsic(cp, K, ST) {
+  return cp === 'C' ? Math.max(ST - K, 0) : Math.max(K - ST, 0);
+}
+
+// 组合在标的价格 ST 时的到期净盈亏（元，含开仓权利金流，不含手续费；手续费已在开仓时扣现金）
+function payoffAtExpiry(legs, qty, ST, premiumFlow) {
+  var v = premiumFlow;
+  for (var i = 0; i < legs.length; i++) {
+    var l = legs[i];
+    var iv = intrinsic(l.cp, l.strike, ST) * qty * MULT;
+    v += (l.side === 'buy' ? iv : -iv);
+  }
+  return v;
+}
+
+// 在候选价位（各腿行权价 + 区间两端）上求精确最大盈利/最大亏损
+function payoffExtremes(legs, qty, S0, premiumFlow) {
+  var cands = [0.7 * S0, 1.3 * S0];
+  for (var i = 0; i < legs.length; i++) cands.push(legs[i].strike);
+  var mx = -Infinity, mn = Infinity;
+  for (var j = 0; j < cands.length; j++) {
+    var v = payoffAtExpiry(legs, qty, cands[j], premiumFlow);
+    if (v > mx) mx = v;
+    if (v < mn) mn = v;
+  }
+  return { maxProfit: mx, maxLoss: Math.max(0, -mn) };
+}
+
+// 损益图采样点（25 点，S0 ±30%）
+function payoffCurve(legs, qty, S0, premiumFlow) {
+  var pts = [];
+  for (var i = 0; i <= 24; i++) {
+    var s = S0 * (0.7 + 0.6 * i / 24);
+    pts.push({ s: +s.toFixed(4), pnl: Math.round(payoffAtExpiry(legs, qty, s, premiumFlow)) });
+  }
+  return pts;
+}
+
+// 组合保证金（元）：价差组按最大亏损计，其余裸卖腿按交易所公式；只买腿为 0
+function positionMargin(legs, qty, S, premiumFlow) {
+  // 按 (expiry, cp) 分组
+  var groups = {};
+  for (var i = 0; i < legs.length; i++) {
+    var key = legs[i].expiry + '|' + legs[i].cp;
+    (groups[key] = groups[key] || []).push(legs[i]);
+  }
+  var total = 0;
+  var keys = Object.keys(groups);
+  for (var g = 0; g < keys.length; g++) {
+    var gl = groups[keys[g]];
+    var shorts = gl.filter(function (l) { return l.side === 'sell'; });
+    var longs = gl.filter(function (l) { return l.side === 'buy'; });
+    var spreadDone = false;
+    if (shorts.length === 1 && longs.length === 1) {
+      var s = shorts[0], l = longs[0];
+      var isSpread = (s.cp === 'C' && l.strike > s.strike) || (s.cp === 'P' && l.strike < s.strike);
+      if (isSpread) {
+        var ex = payoffExtremes(gl, qty, S, premiumFlowForLegs(gl, qty));
+        total += ex.maxLoss;
+        spreadDone = true;
+      }
+    }
+    if (!spreadDone) {
+      for (var k = 0; k < shorts.length; k++) {
+        var settle = shorts[k].last != null ? shorts[k].last : midOf(shorts[k]);
+        if (settle === null) settle = 0;
+        total += exchangeMarginShort(shorts[k].cp, S, shorts[k].strike, settle, qty);
+      }
+    }
+  }
+  return total;
+}
+
+// 组合权利金流：有实时报价用成交价（买 ask/卖 bid），无报价时沿用已存的开仓价
+function flowPrice(l) {
+  if (validQuote(l)) return fillPrice(l);
+  return (l.price !== null && l.price !== undefined) ? l.price : null;
+}
+
+function premiumFlowForLegs(legs, qty) {
+  var v = 0;
+  for (var i = 0; i < legs.length; i++) {
+    var p = flowPrice(legs[i]);
+    if (p === null) return null;
+    v += (legs[i].side === 'sell' ? p : -p) * qty * MULT;
+  }
+  return v;
+}
+
+function feesForLegs(legs, qty) {
+  var v = 0;
+  for (var i = 0; i < legs.length; i++) v += legFees(legs[i], qty);
+  return v;
+}
+
+// 开仓：返回 position 或 { error }
+function openPosition(legs, qty, S, underlying, seq) {
+  for (var i = 0; i < legs.length; i++) {
+    if (fillPrice(legs[i]) === null) return { error: '合约 ' + legs[i].contract + ' 无有效报价，无法成交' };
+  }
+  var pf = premiumFlowForLegs(legs, qty);
+  var fees = feesForLegs(legs, qty);
+  var margin = positionMargin(legs, qty, S, pf);
+  return {
+    id: 'P' + seq + '_' + Date.now(),
+    legs: legs.map(function (l) {
+      return { contract: l.contract, cp: l.cp, strike: l.strike, expiry: l.expiry,
+        side: l.side, price: fillPrice(l), dte: l.dte };
+    }),
+    qty: qty, underlying: underlying, S0: S,
+    premiumFlow: pf, fees: fees, margin: margin,
+    openedAt: new Date().toISOString().slice(0, 10)
+  };
+}
+
+// 持仓市值（元）：多头 +mid、空头 -mid
+function markValue(pos, quoteMap) {
+  var v = 0;
+  for (var i = 0; i < pos.legs.length; i++) {
+    var l = pos.legs[i];
+    var q = quoteMap[l.contract];
+    var m = q ? midOf(q) : null;
+    if (m === null) m = l.price; // 报价缺失时沿用开仓价
+    v += (l.side === 'buy' ? m : -m) * pos.qty * MULT;
+  }
+  return v;
+}
+
+// 浮动盈亏 = 开仓权利金流 + 当前市值
+function floatingPnl(pos, quoteMap) {
+  return pos.premiumFlow + markValue(pos, quoteMap);
+}
+
+// 平仓现金流（元，不含手续费）：多头按 bid 卖、空头按 ask 买；返回 null 表示某腿无报价
+function closeFlow(pos, quoteMap) {
+  var v = 0;
+  for (var i = 0; i < pos.legs.length; i++) {
+    var l = pos.legs[i];
+    var q = quoteMap[l.contract];
+    if (!validQuote(q)) return null;
+    v += (l.side === 'buy' ? q.bid : -q.ask) * pos.qty * MULT;
+  }
+  return v;
+}
+
+function closeFees(pos) {
+  var v = 0;
+  for (var i = 0; i < pos.legs.length; i++) {
+    v += (pos.legs[i].side === 'buy' ? FEE_SELL : FEE_BUY) * pos.qty;
+  }
+  return v;
+}
+
+// 到期结算值（元）：按标的收盘价 ST 算内在价值
+function settleValue(pos, ST) {
+  var v = 0;
+  for (var i = 0; i < pos.legs.length; i++) {
+    var l = pos.legs[i];
+    v += (l.side === 'buy' ? intrinsic(l.cp, l.strike, ST) : -intrinsic(l.cp, l.strike, ST)) * pos.qty * MULT;
+  }
+  return v;
+}
+
+// 账户
+function newAccount() {
+  return { cash: 1000000, realized: 0, positions: [], trades: [], seq: 1 };
+}
+
+function marginUsed(acct, spotMap) {
+  var v = 0;
+  for (var i = 0; i < acct.positions.length; i++) {
+    var p = acct.positions[i];
+    var S = spotMap[p.underlying] || p.S0;
+    v += positionMargin(p.legs.map(function (l) {
+      return { cp: l.cp, strike: l.strike, expiry: l.expiry, side: l.side,
+        bid: 0, ask: 0, last: l.price, contract: l.contract };
+    }), p.qty, S, p.premiumFlow);
+  }
+  return v;
+}
+
+// 在 |delta| 最接近目标的合约（同 cp、同到期、有效报价）
+function findByDelta(contracts, cp, targetAbs, expiry) {
+  var best = null, bestDiff = Infinity;
+  for (var i = 0; i < contracts.length; i++) {
+    var c = contracts[i];
+    if (c.cp !== cp || c.expiry !== expiry || !validQuote(c)) continue;
+    if (c.delta === null || c.delta === undefined) continue;
+    var d = Math.abs(Math.abs(c.delta) - targetAbs);
+    if (d < bestDiff) { bestDiff = d; best = c; }
+  }
+  return best;
+}
+
+// 价差买方腿：在 short 行权价更虚值的一侧找 |delta| 最接近目标的合约
+// （认沽买方行权价须低于卖方，认购买方行权价须高于卖方）
+function findWing(contracts, cp, targetAbs, expiry, shortStrike) {
+  var best = null, bestDiff = Infinity;
+  for (var i = 0; i < contracts.length; i++) {
+    var c = contracts[i];
+    if (c.cp !== cp || c.expiry !== expiry || !validQuote(c)) continue;
+    if (c.delta === null || c.delta === undefined) continue;
+    if (cp === 'P' && !(c.strike < shortStrike)) continue;
+    if (cp === 'C' && !(c.strike > shortStrike)) continue;
+    var d = Math.abs(Math.abs(c.delta) - targetAbs);
+    if (d < bestDiff) { bestDiff = d; best = c; }
+  }
+  return best;
+}
+
+// 行权价最接近标的价格的合约（ATM）
+function findATM(contracts, cp, S, expiry) {
+  var best = null, bestDiff = Infinity;
+  for (var i = 0; i < contracts.length; i++) {
+    var c = contracts[i];
+    if (c.cp !== cp || c.expiry !== expiry || !validQuote(c)) continue;
+    var d = Math.abs(c.strike - S);
+    if (d < bestDiff) { bestDiff = d; best = c; }
+  }
+  return best;
+}
+
+
+
+// ---- 1σ 预期波动区间与成功概率 POP（BS 估算，纯展示，不影响成交/保证金）----
+
+// 1σ 预期波动区间：S×(1 ± iv×√(dte/365))，iv 为小数、dte 为天数
+function expectedMove(S, iv, dte) {
+  if (!S || !iv || iv <= 0 || !dte || dte <= 0) return null;
+  var half = S * iv * Math.sqrt(dte / 365);
+  return { low: S - half, high: S + half, half: half };
+}
+
+// BS d2（行权价 x）：[ln(S/x) + (r − σ²/2)T] / (σ√T)
+function d2Of(S, x, T, sigma) {
+  if (!S || !x || x <= 0 || !T || T <= 0 || !sigma || sigma <= 0) return null;
+  return (Math.log(S / x) + (R - 0.5 * sigma * sigma) * T) / (sigma * Math.sqrt(T));
+}
+
+// 风险中性下 P(a < S_T < b)；a 为 null 表 0，b 为 null 表 +∞
+// （P(S_T < x) = 1 − N(d2(x))，故 P(a<S_T<b) = N(d2(a)) − N(d2(b))）
+function probBetween(S, a, b, T, sigma) {
+  if (!S || !T || T <= 0 || !sigma || sigma <= 0) return null;
+  var pHi = (b === null || b === undefined) ? 1 : 1 - normCdf(d2Of(S, b, T, sigma));
+  var pLo = (a === null || a === undefined) ? 0 : 1 - normCdf(d2Of(S, a, T, sigma));
+  var p = pHi - pLo;
+  if (p < 0) p = 0;
+  if (p > 1) p = 1;
+  return p;
+}
+
+// 到期盈亏平衡点（精确解：到期损益分段线性，在行权价处分段）
+function breakevens(legs, qty, S0, premiumFlow) {
+  var pts = [0.2 * S0, 3 * S0];
+  for (var i = 0; i < legs.length; i++) pts.push(legs[i].strike);
+  pts.sort(function (a, b) { return a - b; });
+  function val(s) { return payoffAtExpiry(legs, qty, s, premiumFlow); }
+  var roots = [];
+  for (var j = 0; j < pts.length - 1; j++) {
+    var x0 = pts[j], x1 = pts[j + 1];
+    if (x1 - x0 < 1e-9) continue;
+    var y0 = val(x0), y1 = val(x1);
+    if (y0 === 0) { roots.push(x0); continue; }
+    if ((y0 < 0 && y1 > 0) || (y0 > 0 && y1 < 0)) {
+      roots.push(x0 + (x1 - x0) * (-y0) / (y1 - y0));
+    }
+  }
+  if (val(pts[pts.length - 1]) === 0) roots.push(pts[pts.length - 1]);
+  roots.sort(function (a, b) { return a - b; });
+  var out = [];
+  roots.forEach(function (r) {
+    if (!out.length || Math.abs(r - out[out.length - 1]) > 1e-6) out.push(r);
+  });
+  return out;
+}
+
+// 成功概率 POP：到期标的价格落在盈利区间的风险中性概率（BS 估算）
+// sigma 取空头腿/平值 IV（调用方传入），T 以年计；单腿 short put 时等于 N(d2(盈亏平衡点))
+function popForLegs(legs, qty, S, premiumFlow, sigma, T) {
+  if (!legs.length || !S || !T || T <= 0 || !sigma || sigma <= 0) return null;
+  var roots = breakevens(legs, qty, S, premiumFlow);
+  var bounds = [null].concat(roots, [null]);
+  var p = 0;
+  for (var i = 0; i < bounds.length - 1; i++) {
+    var a = bounds[i], b = bounds[i + 1];
+    var sample;
+    if (a === null && b === null) sample = S;
+    else if (a === null) sample = b * 0.5;
+    else if (b === null) sample = a * 1.5;
+    else sample = (a + b) / 2;
+    if (payoffAtExpiry(legs, qty, sample, premiumFlow) > 0) {
+      var pi = probBetween(S, a, b, T, sigma);
+      if (pi === null) return null;
+      p += pi;
+    }
+  }
+  if (p < 0) p = 0;
+  if (p > 1) p = 1;
+  return p;
+}
+
+</script>
+<script>
+/* Built-in close chain 2026-11-13 (Sina snapshot). Tradable fallback when live sim-chains.json is absent/stale. */
+var CLOSE_CHAIN = {"date":"2026-11-13","source":"chain_20261113.parquet (Sina snapshot)","etfs":{"159901":{"underlying_close":2.787,"contracts":[{"contract":"90008447","cp":"C","strike":2.6,"expiry":"2026-11-25","dte":12,"bid":0.175,"ask":0.1821,"last":0.1846,"volume":527,"oi":310,"iv":null,"delta":0.9358690023414808},{"contract":"90008431","cp":"C","strike":2.65,"expiry":"2026-11-25","dte":12,"bid":0.1324,"ask":0.1368,"last":0.1412,"volume":272,"oi":273,"iv":null,"delta":0.8673869016857167},{"contract":"90008299","cp":"C","strike":2.7,"expiry":"2026-11-25","dte":12,"bid":0.094,"ask":0.0955,"last":0.0996,"volume":824,"oi":1311,"iv":0.16628830523957772,"delta":0.8618594626931648},{"contract":"90008300","cp":"C","strike":2.75,"expiry":"2026-11-25","dte":12,"bid":0.0596,"ask":0.0613,"last":0.0612,"volume":626,"oi":1036,"iv":0.1894742522277023,"delta":0.6647035766946366},{"contract":"90008273","cp":"C","strike":2.8,"expiry":"2026-11-25","dte":12,"bid":0.0353,"ask":0.0354,"last":0.0354,"volume":1332,"oi":2637,"iv":0.20142547089267593,"delta":0.4636847148421179},{"contract":"90008209","cp":"C","strike":2.85,"expiry":"2026-11-25","dte":12,"bid":0.019,"ask":0.0191,"last":0.019,"volume":3170,"oi":3165,"iv":0.2102972534814816,"delta":0.29118940508693736},{"contract":"90008157","cp":"C","strike":2.9,"expiry":"2026-11-25","dte":12,"bid":0.0095,"ask":0.0098,"last":0.0097,"volume":4012,"oi":3549,"iv":0.21872512266065397,"delta":0.16708303233060628},{"contract":"90008129","cp":"C","strike":2.95,"expiry":"2026-11-25","dte":12,"bid":0.0045,"ask":0.0051,"last":0.0047,"volume":1450,"oi":4964,"iv":0.22858091680204862,"delta":0.0909682239429645},{"contract":"90008119","cp":"C","strike":3.0,"expiry":"2026-11-25","dte":12,"bid":0.0021,"ask":0.003,"last":0.0028,"volume":1383,"oi":5608,"iv":0.24230237217559136,"delta":0.050568972750044294},{"contract":"90008047","cp":"C","strike":3.1,"expiry":"2026-11-25","dte":12,"bid":0.0006,"ask":0.0011,"last":0.001,"volume":1034,"oi":2833,"iv":0.2730516019715885,"delta":0.017352689404048993},{"contract":"90008048","cp":"C","strike":3.2,"expiry":"2026-11-25","dte":12,"bid":0.0003,"ask":0.0004,"last":0.0004,"volume":428,"oi":1544,"iv":0.3055549049623013,"delta":0.007051886321403689},{"contract":"90008049","cp":"C","strike":3.3,"expiry":"2026-11-25","dte":12,"bid":0.0,"ask":0.0001,"last":0.0001,"volume":239,"oi":666,"iv":0.3214862530876663,"delta":0.0021313030108047193},{"contract":"90008050","cp":"C","strike":3.4,"expiry":"2026-11-25","dte":12,"bid":0.0,"ask":0.0001,"last":0.0001,"volume":190,"oi":649,"iv":0.3724615190566739,"delta":0.001863902852547672},{"contract":"90008051","cp":"C","strike":3.5,"expiry":"2026-11-25","dte":12,"bid":0.0,"ask":0.0001,"last":0.0001,"volume":2019,"oi":1660,"iv":0.42129240570701987,"delta":0.001666196656849861},{"contract":"90008052","cp":"C","strike":3.6,"expiry":"2026-11-25","dte":12,"bid":0.0,"ask":0.0001,"last":0.0001,"volume":162,"oi":1109,"iv":0.46820289878812693,"delta":0.0015136704051545435},{"contract":"90008053","cp":"C","strike":3.7,"expiry":"2026-11-25","dte":12,"bid":0.0,"ask":0.0001,"last":0.0001,"volume":3386,"oi":2797,"iv":0.5133718085985839,"delta":0.0013921772548518008},{"contract":"90008054","cp":"C","strike":3.8,"expiry":"2026-11-25","dte":12,"bid":0.0,"ask":0.0001,"last":0.0001,"volume":2212,"oi":4615,"iv":0.5569467074900238,"delta":0.001292960063441928},{"contract":"90008055","cp":"C","strike":3.9,"expiry":"2026-11-25","dte":12,"bid":0.0,"ask":0.0001,"last":0.0001,"volume":4007,"oi":4368,"iv":0.599052362629169,"delta":0.001210297459881382},{"contract":"90008448","cp":"P","strike":2.6,"expiry":"2026-11-25","dte":12,"bid":0.0063,"ask":0.007,"last":0.0065,"volume":1187,"oi":2802,"iv":0.29797032166024606,"delta":-0.09263310802899061},{"contract":"90008432","cp":"P","strike":2.65,"expiry":"2026-11-25","dte":12,"bid":0.0119,"ask":0.0125,"last":0.0136,"volume":406,"oi":1192,"iv":0.28697961383999315,"delta":-0.15688310704871533},{"contract":"90008301","cp":"P","strike":2.7,"expiry":"2026-11-25","dte":12,"bid":0.0222,"ask":0.0228,"last":0.0229,"volume":310,"oi":1271,"iv":0.28261902582656906,"delta":-0.25548386303706494},{"contract":"90008302","cp":"P","strike":2.75,"expiry":"2026-11-25","dte":12,"bid":0.0385,"ask":0.0393,"last":0.0389,"volume":1452,"oi":2419,"iv":0.28067938213793286,"delta":-0.38171679953879},{"contract":"90008274","cp":"P","strike":2.8,"expiry":"2026-11-25","dte":12,"bid":0.0626,"ask":0.0638,"last":0.0626,"volume":1562,"oi":2554,"iv":0.28442151720000575,"delta":-0.5206170305194187},{"contract":"90008210","cp":"P","strike":2.85,"expiry":"2026-11-25","dte":12,"bid":0.0953,"ask":0.0976,"last":0.0963,"volume":1113,"oi":1297,"iv":0.2997500973113645,"delta":-0.6450558917211335},{"contract":"90008158","cp":"P","strike":2.9,"expiry":"2026-11-25","dte":12,"bid":0.135,"ask":0.1395,"last":0.1369,"volume":305,"oi":765,"iv":0.32929775130637784,"delta":-0.7339451660344566},{"contract":"90008130","cp":"P","strike":2.95,"expiry":"2026-11-25","dte":12,"bid":0.1793,"ask":0.1864,"last":0.1736,"volume":209,"oi":769,"iv":0.37114143846719394,"delta":-0.7884951266653363},{"contract":"90008120","cp":"P","strike":3.0,"expiry":"2026-11-25","dte":12,"bid":0.2257,"ask":0.2349,"last":0.2271,"volume":318,"oi":447,"iv":0.4157565377813047,"delta":-0.8239510910667855},{"contract":"90008056","cp":"P","strike":3.1,"expiry":"2026-11-25","dte":12,"bid":0.322,"ask":0.3351,"last":0.3225,"volume":53,"oi":326,"iv":0.5146508125992693,"delta":-0.8614584144640636},{"contract":"90008057","cp":"P","strike":3.2,"expiry":"2026-11-25","dte":12,"bid":0.4189,"ask":0.43,"last":0.4,"volume":19,"oi":119,"iv":0.5745722057386751,"delta":-0.8975994575548617},{"contract":"90008058","cp":"P","strike":3.3,"expiry":"2026-11-25","dte":12,"bid":0.5167,"ask":0.5378,"last":0.5109,"volume":43,"oi":299,"iv":0.6985622376106833,"delta":-0.8971335517141996},{"contract":"90008059","cp":"P","strike":3.4,"expiry":"2026-11-25","dte":12,"bid":0.6142,"ask":0.6393,"last":0.6104,"volume":16,"oi":123,"iv":0.7811052338421443,"delta":-0.9079560814329667},{"contract":"90008060","cp":"P","strike":3.5,"expiry":"2026-11-25","dte":12,"bid":0.7133,"ask":0.7425,"last":0.7108,"volume":8,"oi":46,"iv":0.8787581516485872,"delta":-0.9108281395214344},{"contract":"90008061","cp":"P","strike":3.6,"expiry":"2026-11-25","dte":12,"bid":0.8103,"ask":0.8433,"last":0.0,"volume":0,"oi":60,"iv":0.9442453831556521,"delta":-0.9200797432157938},{"contract":"90008062","cp":"P","strike":3.7,"expiry":"2026-11-25","dte":12,"bid":0.9091,"ask":0.9462,"last":0.0,"volume":0,"oi":43,"iv":1.0314901036995132,"delta":-0.9219142025312713},{"contract":"90008063","cp":"P","strike":3.8,"expiry":"2026-11-25","dte":12,"bid":1.0073,"ask":1.0469,"last":1.0086,"volume":11,"oi":92,"iv":1.0964718930088448,"delta":-0.9274045065874021},{"contract":"90008064","cp":"P","strike":3.9,"expiry":"2026-11-25","dte":12,"bid":1.1056,"ask":1.1473,"last":0.0,"volume":0,"oi":29,"iv":1.1563015573068474,"delta":-0.9325011576938133},{"contract":"90008449","cp":"C","strike":2.6,"expiry":"2026-12-23","dte":40,"bid":0.1942,"ask":0.2022,"last":0.2135,"volume":1,"oi":29,"iv":0.1579916927289729,"delta":0.9186436727605911},{"contract":"90008433","cp":"C","strike":2.65,"expiry":"2026-12-23","dte":40,"bid":0.1596,"ask":0.1654,"last":0.1739,"volume":1,"oi":92,"iv":0.19180562367748544,"delta":0.8051374736585306},{"contract":"90008303","cp":"C","strike":2.7,"expiry":"2026-12-23","dte":40,"bid":0.1278,"ask":0.1316,"last":0.1405,"volume":13,"oi":119,"iv":0.20498689953940907,"delta":0.7031829664603932},{"contract":"90008304","cp":"C","strike":2.75,"expiry":"2026-12-23","dte":40,"bid":0.0998,"ask":0.1024,"last":0.1005,"volume":22,"oi":198,"iv":0.21279626301972404,"delta":0.6010466424443247},{"contract":"90008275","cp":"C","strike":2.8,"expiry":"2026-12-23","dte":40,"bid":0.0748,"ask":0.0778,"last":0.0775,"volume":323,"oi":916,"iv":0.21628130778859228,"delta":0.5005642633910725},{"contract":"90008211","cp":"C","strike":2.85,"expiry":"2026-12-23","dte":40,"bid":0.0552,"ask":0.0576,"last":0.0575,"volume":281,"oi":918,"iv":0.21968077068008646,"delta":0.40482709536303835},{"contract":"90008159","cp":"C","strike":2.9,"expiry":"2026-12-23","dte":40,"bid":0.0401,"ask":0.0414,"last":0.041,"volume":268,"oi":676,"iv":0.2225667644398845,"delta":0.31816116078386225},{"contract":"90008131","cp":"C","strike":2.95,"expiry":"2026-12-23","dte":40,"bid":0.0284,"ask":0.0292,"last":0.0313,"volume":160,"oi":994,"iv":0.22510635774171717,"delta":0.2431921156863796},{"contract":"90008037","cp":"C","strike":3.0,"expiry":"2026-12-23","dte":40,"bid":0.0194,"ask":0.0204,"last":0.0218,"volume":488,"oi":1176,"iv":0.22728336342416616,"delta":0.18086709231302922},{"contract":"90007927","cp":"C","strike":3.1,"expiry":"2026-12-23","dte":40,"bid":0.0091,"ask":0.0099,"last":0.0093,"volume":236,"oi":670,"iv":0.23474160891044382,"delta":0.09635365382036004},{"contract":"90007803","cp":"C","strike":3.2,"expiry":"2026-12-23","dte":40,"bid":0.004,"ask":0.0049,"last":0.0045,"volume":346,"oi":653,"iv":0.24259718684556192,"delta":0.049145036077719195},{"contract":"90007804","cp":"C","strike":3.3,"expiry":"2026-12-23","dte":40,"bid":0.0021,"ask":0.0027,"last":0.0027,"volume":885,"oi":621,"iv":0.25645740169991116,"delta":0.027312794611194458},{"contract":"90007479","cp":"C","strike":3.4,"expiry":"2026-12-23","dte":40,"bid":0.001,"ask":0.0016,"last":0.002,"volume":716,"oi":1177,"iv":0.26879651512504665,"delta":0.015189260756405087},{"contract":"90007393","cp":"C","strike":3.5,"expiry":"2026-12-23","dte":40,"bid":0.0004,"ask":0.0009,"last":0.0008,"volume":34,"oi":382,"iv":0.2771293977698295,"delta":0.007905049935616137},{"contract":"90007394","cp":"C","strike":3.6,"expiry":"2026-12-23","dte":40,"bid":0.0001,"ask":0.0008,"last":0.0003,"volume":11,"oi":628,"iv":0.294729679331833,"delta":0.005351703076799108},{"contract":"90007395","cp":"C","strike":3.7,"expiry":"2026-12-23","dte":40,"bid":0.0001,"ask":0.0007,"last":0.0005,"volume":36,"oi":796,"iv":0.31857851859928565,"delta":0.004482675178139495},{"contract":"90007396","cp":"C","strike":3.8,"expiry":"2026-12-23","dte":40,"bid":0.0001,"ask":0.0004,"last":0.0003,"volume":1,"oi":607,"iv":0.3294875418658241,"delta":0.0028218835140882415},{"contract":"90007397","cp":"C","strike":3.9,"expiry":"2026-12-23","dte":40,"bid":0.0001,"ask":0.0006,"last":0.0001,"volume":1,"oi":401,"iv":0.3657774917472736,"delta":0.003505833809812786},{"contract":"90007398","cp":"C","strike":4.0,"expiry":"2026-12-23","dte":40,"bid":0.0001,"ask":0.0005,"last":0.0004,"volume":10,"oi":396,"iv":0.38449757736482215,"delta":0.0029089203406040265},{"contract":"90007399","cp":"C","strike":4.1,"expiry":"2026-12-23","dte":40,"bid":0.0001,"ask":0.0008,"last":0.0001,"volume":1,"oi":342,"iv":0.42423018705871607,"delta":0.0038739127440461374},{"contract":"90007400","cp":"C","strike":4.2,"expiry":"2026-12-23","dte":40,"bid":0.0001,"ask":0.0008,"last":0.0006,"volume":341,"oi":889,"iv":0.4476218920878252,"delta":0.0036944259607697982},{"contract":"90007401","cp":"C","strike":4.3,"expiry":"2026-12-23","dte":40,"bid":0.0001,"ask":0.0003,"last":0.0001,"volume":1,"oi":761,"iv":0.4364503359660109,"delta":0.0017843596251819194},{"contract":"90007497","cp":"C","strike":4.4,"expiry":"2026-12-23","dte":40,"bid":0.0003,"ask":0.0005,"last":0.0003,"volume":210,"oi":1225,"iv":0.4868014861714577,"delta":0.0030774266669196804},{"contract":"90007521","cp":"C","strike":4.5,"expiry":"2026-12-23","dte":40,"bid":0.0001,"ask":0.0004,"last":0.0003,"volume":50,"oi":1996,"iv":0.48671065212037357,"delta":0.0019919469050316274},{"contract":"90007667","cp":"C","strike":4.6,"expiry":"2026-12-23","dte":40,"bid":0.0002,"ask":0.0003,"last":0.0002,"volume":3652,"oi":10427,"iv":0.5066535470297764,"delta":0.0019221430997524158},{"contract":"90008450","cp":"P","strike":2.6,"expiry":"2026-12-23","dte":40,"bid":0.0371,"ask":0.0376,"last":0.0377,"volume":264,"oi":607,"iv":0.30213805199054433,"delta":-0.22174168169708786},{"contract":"90008434","cp":"P","strike":2.65,"expiry":"2026-12-23","dte":40,"bid":0.0501,"ask":0.0519,"last":0.0494,"volume":164,"oi":452,"iv":0.30041397929239233,"delta":-0.28142483674129704},{"contract":"90008305","cp":"P","strike":2.7,"expiry":"2026-12-23","dte":40,"bid":0.0669,"ask":0.0693,"last":0.065,"volume":107,"oi":504,"iv":0.299299367736206,"delta":-0.34762383964164734},{"contract":"90008306","cp":"P","strike":2.75,"expiry":"2026-12-23","dte":40,"bid":0.0875,"ask":0.0909,"last":0.086,"volume":142,"oi":507,"iv":0.2995747991989278,"delta":-0.41821928860097946},{"contract":"90008276","cp":"P","strike":2.8,"expiry":"2026-12-23","dte":40,"bid":0.1126,"ask":0.1154,"last":0.1106,"volume":77,"oi":443,"iv":0.3000529697137069,"delta":-0.49007524284156245},{"contract":"90008212","cp":"P","strike":2.85,"expiry":"2026-12-23","dte":40,"bid":0.142,"ask":0.1466,"last":0.1444,"volume":100,"oi":446,"iv":0.30585992959872943,"delta":-0.5590236136035796},{"contract":"90008160","cp":"P","strike":2.9,"expiry":"2026-12-23","dte":40,"bid":0.1757,"ask":0.1823,"last":0.1765,"volume":78,"oi":384,"iv":0.3149962260947434,"delta":-0.6209552112131937},{"contract":"90008132","cp":"P","strike":2.95,"expiry":"2026-12-23","dte":40,"bid":0.2126,"ask":0.2213,"last":0.2122,"volume":36,"oi":413,"iv":0.32575798938027645,"delta":-0.6746640651865818},{"contract":"90008038","cp":"P","strike":3.0,"expiry":"2026-12-23","dte":40,"bid":0.2528,"ask":0.2632,"last":0.2264,"volume":28,"oi":562,"iv":0.33941943083691306,"delta":-0.7189587995492432},{"contract":"90007928","cp":"P","strike":3.1,"expiry":"2026-12-23","dte":40,"bid":0.3402,"ask":0.3541,"last":0.3021,"volume":3,"oi":437,"iv":0.3755692671544383,"delta":-0.7812112806633571},{"contract":"90007805","cp":"P","strike":3.2,"expiry":"2026-12-23","dte":40,"bid":0.4329,"ask":0.4506,"last":0.0,"volume":0,"oi":277,"iv":0.41913486154544743,"delta":-0.8187854485459415},{"contract":"90007806","cp":"P","strike":3.3,"expiry":"2026-12-23","dte":40,"bid":0.5291,"ask":0.5507,"last":0.5402,"volume":186,"oi":520,"iv":0.47002800224927066,"delta":-0.8398788749443884},{"contract":"90007480","cp":"P","strike":3.4,"expiry":"2026-12-23","dte":40,"bid":0.6251,"ask":0.6506,"last":0.6226,"volume":64,"oi":430,"iv":0.5151411862731683,"delta":-0.8571699315397165},{"contract":"90007402","cp":"P","strike":3.5,"expiry":"2026-12-23","dte":40,"bid":0.7225,"ask":0.752,"last":0.7348,"volume":10,"oi":359,"iv":0.563406194231449,"delta":-0.8678641696843243},{"contract":"90007403","cp":"P","strike":3.6,"expiry":"2026-12-23","dte":40,"bid":0.8202,"ask":0.8537,"last":0.0,"volume":0,"oi":195,"iv":0.6103798692341,"delta":-0.875935266240247},{"contract":"90007404","cp":"P","strike":3.7,"expiry":"2026-12-23","dte":40,"bid":0.9183,"ask":0.9551,"last":0.8851,"volume":6,"oi":642,"iv":0.6552387528192267,"delta":-0.8825458164651573},{"contract":"90007405","cp":"P","strike":3.8,"expiry":"2026-12-23","dte":40,"bid":1.0143,"ask":1.0553,"last":0.0,"volume":0,"oi":279,"iv":0.688485489172034,"delta":-0.8919042211394423},{"contract":"90007406","cp":"P","strike":3.9,"expiry":"2026-12-23","dte":40,"bid":1.1119,"ask":1.1556,"last":0.0,"volume":0,"oi":140,"iv":0.7242009694906337,"delta":-0.8984099640235433},{"contract":"90007407","cp":"P","strike":4.0,"expiry":"2026-12-23","dte":40,"bid":1.2111,"ask":1.2558,"last":0.0,"volume":0,"oi":95,"iv":0.7626231969298303,"delta":-0.9025666611574542},{"contract":"90007408","cp":"P","strike":4.1,"expiry":"2026-12-23","dte":40,"bid":1.3103,"ask":1.3559,"last":0.0,"volume":0,"oi":61,"iv":0.7991743435386911,"delta":-0.9063382898209101},{"contract":"90007409","cp":"P","strike":4.2,"expiry":"2026-12-23","dte":40,"bid":1.4095,"ask":1.4563,"last":0.0,"volume":0,"oi":114,"iv":0.8352857985367514,"delta":-0.9093864407343096},{"contract":"90007410","cp":"P","strike":4.3,"expiry":"2026-12-23","dte":40,"bid":1.5087,"ask":1.5564,"last":0.0,"volume":0,"oi":87,"iv":0.8690996862221285,"delta":-0.9124151173449557},{"contract":"90007498","cp":"P","strike":4.4,"expiry":"2026-12-23","dte":40,"bid":1.6079,"ask":1.6567,"last":0.0,"volume":0,"oi":89,"iv":0.9023810907443315,"delta":-0.9149556311041172},{"contract":"90007522","cp":"P","strike":4.5,"expiry":"2026-12-23","dte":40,"bid":1.7073,"ask":1.757,"last":0.0,"volume":0,"oi":564,"iv":0.9352594286395657,"delta":-0.9170626260712333},{"contract":"90007668","cp":"P","strike":4.6,"expiry":"2026-12-23","dte":40,"bid":1.8066,"ask":1.8572,"last":0.0,"volume":0,"oi":350,"iv":0.9664028397067914,"delta":-0.9191665131225464}]},"159915":{"underlying_close":2.442,"contracts":[{"contract":"90008495","cp":"C","strike":2.2,"expiry":"2026-11-25","dte":12,"bid":0.2502,"ask":0.2512,"last":0.2506,"volume":1234,"oi":1197,"iv":0.4273287981459464,"delta":0.9183569278466963},{"contract":"90008455","cp":"C","strike":2.25,"expiry":"2026-11-25","dte":12,"bid":0.2037,"ask":0.2062,"last":0.206,"volume":1872,"oi":2853,"iv":0.4074250175340921,"delta":0.8758129830939696},{"contract":"90008456","cp":"C","strike":2.3,"expiry":"2026-11-25","dte":12,"bid":0.1645,"ask":0.165,"last":0.1645,"volume":3044,"oi":3311,"iv":0.41501038253414557,"delta":0.8002436579578085},{"contract":"90008345","cp":"C","strike":2.35,"expiry":"2026-11-25","dte":12,"bid":0.125,"ask":0.1256,"last":0.1256,"volume":12180,"oi":7374,"iv":0.3962028068867288,"delta":0.7189171723465737},{"contract":"90008315","cp":"C","strike":2.4,"expiry":"2026-11-25","dte":12,"bid":0.0934,"ask":0.0935,"last":0.0935,"volume":33862,"oi":14161,"iv":0.3970733363181018,"delta":0.6125970885614145},{"contract":"90008316","cp":"C","strike":2.45,"expiry":"2026-11-25","dte":12,"bid":0.0653,"ask":0.0654,"last":0.0654,"volume":93727,"oi":32168,"iv":0.3873429137660672,"delta":0.49916617124330087},{"contract":"90008289","cp":"C","strike":2.5,"expiry":"2026-11-25","dte":12,"bid":0.0442,"ask":0.0443,"last":0.0442,"volume":172026,"oi":68886,"iv":0.3850587005926551,"delta":0.3851900049548475},{"contract":"90008281","cp":"C","strike":2.55,"expiry":"2026-11-25","dte":12,"bid":0.0283,"ask":0.0284,"last":0.0284,"volume":145959,"oi":70351,"iv":0.3815545259180333,"delta":0.2804749146011949},{"contract":"90008235","cp":"C","strike":2.6,"expiry":"2026-11-25","dte":12,"bid":0.0183,"ask":0.0184,"last":0.0184,"volume":140207,"oi":86376,"iv":0.3876593049541702,"delta":0.19837690980889772},{"contract":"90008236","cp":"C","strike":2.65,"expiry":"2026-11-25","dte":12,"bid":0.0116,"ask":0.0117,"last":0.0117,"volume":105639,"oi":70176,"iv":0.3942836353903313,"delta":0.13600506670557866},{"contract":"90008217","cp":"C","strike":2.7,"expiry":"2026-11-25","dte":12,"bid":0.0076,"ask":0.0077,"last":0.0077,"volume":78721,"oi":72703,"iv":0.40620076229442637,"delta":0.09377198592438851},{"contract":"90008193","cp":"C","strike":2.75,"expiry":"2026-11-25","dte":12,"bid":0.0043,"ask":0.0048,"last":0.0043,"volume":56580,"oi":48453,"iv":0.40921713252664693,"delta":0.05998294411561489},{"contract":"90008177","cp":"C","strike":2.8,"expiry":"2026-11-25","dte":12,"bid":0.003,"ask":0.0031,"last":0.003,"volume":47312,"oi":67845,"iv":0.423128006427544,"delta":0.041266652911770174},{"contract":"90008165","cp":"C","strike":2.85,"expiry":"2026-11-25","dte":12,"bid":0.0017,"ask":0.0019,"last":0.0017,"volume":23765,"oi":47306,"iv":0.42723728821710916,"delta":0.02575460676914476},{"contract":"90008137","cp":"C","strike":2.9,"expiry":"2026-11-25","dte":12,"bid":0.0012,"ask":0.0013,"last":0.0013,"volume":15820,"oi":37784,"iv":0.4422592671184471,"delta":0.018073200574325377},{"contract":"90008121","cp":"C","strike":2.95,"expiry":"2026-11-25","dte":12,"bid":0.0008,"ask":0.0009,"last":0.0009,"volume":10172,"oi":25688,"iv":0.4548778852196915,"delta":0.012475640611110395},{"contract":"90008065","cp":"C","strike":3.0,"expiry":"2026-11-25","dte":12,"bid":0.0009,"ask":0.001,"last":0.0009,"volume":8632,"oi":46734,"iv":0.4966063638607152,"delta":0.012769218153838191},{"contract":"90008066","cp":"C","strike":3.1,"expiry":"2026-11-25","dte":12,"bid":0.0005,"ask":0.0007,"last":0.0005,"volume":3155,"oi":28053,"iv":0.5331551025864196,"delta":0.007913925223423157},{"contract":"90008067","cp":"C","strike":3.2,"expiry":"2026-11-25","dte":12,"bid":0.0004,"ask":0.0005,"last":0.0004,"volume":1751,"oi":33155,"iv":0.5757629002010418,"delta":0.005687230767538409},{"contract":"90008068","cp":"C","strike":3.3,"expiry":"2026-11-25","dte":12,"bid":0.0002,"ask":0.0003,"last":0.0002,"volume":1967,"oi":18481,"iv":0.5962128521469505,"delta":0.0032134291209744426},{"contract":"90008069","cp":"C","strike":3.4,"expiry":"2026-11-25","dte":12,"bid":0.0002,"ask":0.0003,"last":0.0002,"volume":1189,"oi":10010,"iv":0.648570364059615,"delta":0.00298051148732581},{"contract":"90008070","cp":"C","strike":3.5,"expiry":"2026-11-25","dte":12,"bid":0.0002,"ask":0.0003,"last":0.0002,"volume":487,"oi":12961,"iv":0.6989279030947697,"delta":0.002788038104267865},{"contract":"90008071","cp":"C","strike":3.6,"expiry":"2026-11-25","dte":12,"bid":0.0001,"ask":0.0002,"last":0.0001,"volume":17124,"oi":20445,"iv":0.7139486939783446,"delta":0.0017039561004456028},{"contract":"90008072","cp":"C","strike":3.7,"expiry":"2026-11-25","dte":12,"bid":0.0001,"ask":0.0002,"last":0.0001,"volume":37165,"oi":18384,"iv":0.7590734151311251,"delta":0.001612801406010722},{"contract":"90008073","cp":"C","strike":3.8,"expiry":"2026-11-25","dte":12,"bid":0.0002,"ask":0.0003,"last":0.0003,"volume":98757,"oi":37285,"iv":0.8395231240812289,"delta":0.002368210560901307},{"contract":"90008496","cp":"P","strike":2.2,"expiry":"2026-11-25","dte":12,"bid":0.01,"ask":0.0101,"last":0.01,"volume":51118,"oi":23095,"iv":0.4660531909971143,"delta":-0.09939653558122152},{"contract":"90008457","cp":"P","strike":2.25,"expiry":"2026-11-25","dte":12,"bid":0.0153,"ask":0.0154,"last":0.0154,"volume":53128,"oi":44408,"iv":0.44781896805977506,"delta":-0.14521442913721794},{"contract":"90008458","cp":"P","strike":2.3,"expiry":"2026-11-25","dte":12,"bid":0.0233,"ask":0.0236,"last":0.0236,"volume":86071,"oi":40229,"iv":0.43263229734028485,"delta":-0.20859505595919936},{"contract":"90008346","cp":"P","strike":2.35,"expiry":"2026-11-25","dte":12,"bid":0.0356,"ask":0.0357,"last":0.0357,"volume":91920,"oi":37934,"iv":0.42204981755930115,"delta":-0.2916147683349002},{"contract":"90008317","cp":"P","strike":2.4,"expiry":"2026-11-25","dte":12,"bid":0.0518,"ask":0.0519,"last":0.0518,"volume":138002,"oi":44932,"iv":0.40872599655712694,"delta":-0.38973082609655685},{"contract":"90008318","cp":"P","strike":2.45,"expiry":"2026-11-25","dte":12,"bid":0.073,"ask":0.0732,"last":0.0732,"volume":165797,"oi":48987,"iv":0.3950444353542746,"delta":-0.5002659069935373},{"contract":"90008290","cp":"P","strike":2.5,"expiry":"2026-11-25","dte":12,"bid":0.1015,"ask":0.1024,"last":0.1015,"volume":193770,"oi":58039,"iv":0.3929856956388632,"delta":-0.6120122482446777},{"contract":"90008282","cp":"P","strike":2.55,"expiry":"2026-11-25","dte":12,"bid":0.137,"ask":0.1371,"last":0.137,"volume":107352,"oi":45556,"iv":0.39736386733737217,"delta":-0.7107199477299275},{"contract":"90008237","cp":"P","strike":2.6,"expiry":"2026-11-25","dte":12,"bid":0.175,"ask":0.1774,"last":0.175,"volume":53427,"oi":34319,"iv":0.40014512228396903,"delta":-0.7935388225914213},{"contract":"90008238","cp":"P","strike":2.65,"expiry":"2026-11-25","dte":12,"bid":0.2175,"ask":0.22,"last":0.221,"volume":23904,"oi":20668,"iv":0.402877668291019,"delta":-0.8584702897739108},{"contract":"90008218","cp":"P","strike":2.7,"expiry":"2026-11-25","dte":12,"bid":0.265,"ask":0.266,"last":0.266,"volume":12222,"oi":17668,"iv":0.42714977052634295,"delta":-0.8942662818371827},{"contract":"90008194","cp":"P","strike":2.75,"expiry":"2026-11-25","dte":12,"bid":0.3121,"ask":0.315,"last":0.3145,"volume":3333,"oi":7896,"iv":0.4558696564352054,"delta":-0.917395608223255},{"contract":"90008178","cp":"P","strike":2.8,"expiry":"2026-11-25","dte":12,"bid":0.3651,"ask":0.3666,"last":0.3627,"volume":3516,"oi":11764,"iv":0.5415946898234754,"delta":-0.9094338507533336},{"contract":"90008166","cp":"P","strike":2.85,"expiry":"2026-11-25","dte":12,"bid":0.4179,"ask":0.4195,"last":0.4179,"volume":1188,"oi":7098,"iv":0.6323414714833424,"delta":-0.9005100586563783},{"contract":"90008138","cp":"P","strike":2.9,"expiry":"2026-11-25","dte":12,"bid":0.4545,"ask":0.4668,"last":0.4617,"volume":837,"oi":6479,"iv":0.5478757901167555,"delta":-0.9529402188513274},{"contract":"90008122","cp":"P","strike":2.95,"expiry":"2026-11-25","dte":12,"bid":0.503,"ask":0.5163,"last":0.506,"volume":452,"oi":5218,"iv":0.5658871223748059,"delta":-0.9628013147179701},{"contract":"90008074","cp":"P","strike":3.0,"expiry":"2026-11-25","dte":12,"bid":0.5581,"ask":0.566,"last":0.5659,"volume":298,"oi":5401,"iv":0.666785180429349,"delta":-0.9491102343611773},{"contract":"90008075","cp":"P","strike":3.1,"expiry":"2026-11-25","dte":12,"bid":0.6571,"ask":0.6656,"last":0.6614,"volume":156,"oi":2553,"iv":0.7341890593623697,"delta":-0.9573488315237663},{"contract":"90008076","cp":"P","strike":3.2,"expiry":"2026-11-25","dte":12,"bid":0.7569,"ask":0.7654,"last":0.7598,"volume":80,"oi":2515,"iv":0.8077965350361087,"delta":-0.9614648835194153},{"contract":"90008077","cp":"P","strike":3.3,"expiry":"2026-11-25","dte":12,"bid":0.8513,"ask":0.8652,"last":0.8634,"volume":66,"oi":2242,"iv":0.7798828378554512,"delta":-0.9800113737394792},{"contract":"90008078","cp":"P","strike":3.4,"expiry":"2026-11-25","dte":12,"bid":0.9513,"ask":0.9651,"last":0.9601,"volume":67,"oi":1042,"iv":0.8448421371321879,"delta":-0.9812193022489469},{"contract":"90008079","cp":"P","strike":3.5,"expiry":"2026-11-25","dte":12,"bid":1.0512,"ask":1.065,"last":1.0663,"volume":12,"oi":793,"iv":0.9046177220117251,"delta":-0.9825034585220349},{"contract":"90008080","cp":"P","strike":3.6,"expiry":"2026-11-25","dte":12,"bid":1.151,"ask":1.1649,"last":0.0,"volume":0,"oi":545,"iv":0.9589960084549531,"delta":-0.9838755450700128},{"contract":"90008081","cp":"P","strike":3.7,"expiry":"2026-11-25","dte":12,"bid":1.2509,"ask":1.2649,"last":1.2422,"volume":12,"oi":348,"iv":1.01653707357245,"delta":-0.9845599932469563},{"contract":"90008082","cp":"P","strike":3.8,"expiry":"2026-11-25","dte":12,"bid":1.3509,"ask":1.3648,"last":1.3598,"volume":3,"oi":546,"iv":1.072106778751809,"delta":-0.9851512466344218},{"contract":"90008497","cp":"C","strike":2.2,"expiry":"2026-12-23","dte":40,"bid":0.2745,"ask":0.2821,"last":0.2792,"volume":434,"oi":1166,"iv":0.37679932854766207,"delta":0.820319419850088},{"contract":"90008459","cp":"C","strike":2.25,"expiry":"2026-12-23","dte":40,"bid":0.2372,"ask":0.2437,"last":0.2376,"volume":506,"oi":1318,"iv":0.3767030231503482,"delta":0.7693101490464415},{"contract":"90008460","cp":"C","strike":2.3,"expiry":"2026-12-23","dte":40,"bid":0.2043,"ask":0.2078,"last":0.2047,"volume":2407,"oi":3560,"iv":0.3784966667312567,"delta":0.7116687008357522},{"contract":"90008347","cp":"C","strike":2.35,"expiry":"2026-12-23","dte":40,"bid":0.174,"ask":0.175,"last":0.1726,"volume":1028,"oi":2293,"iv":0.37901340333168265,"delta":0.6503517155967138},{"contract":"90008319","cp":"C","strike":2.4,"expiry":"2026-12-23","dte":40,"bid":0.1424,"ask":0.1425,"last":0.1425,"volume":4033,"oi":4924,"iv":0.3675398734301162,"delta":0.5876234195245009},{"contract":"90008320","cp":"C","strike":2.45,"expiry":"2026-12-23","dte":40,"bid":0.1154,"ask":0.1166,"last":0.1166,"volume":10906,"oi":9656,"iv":0.3637776531842819,"delta":0.5204384897471652},{"contract":"90008291","cp":"C","strike":2.5,"expiry":"2026-12-23","dte":40,"bid":0.0955,"ask":0.0958,"last":0.0957,"volume":20473,"oi":17102,"iv":0.36864316057270985,"delta":0.4548691192880883},{"contract":"90008283","cp":"C","strike":2.55,"expiry":"2026-12-23","dte":40,"bid":0.0769,"ask":0.077,"last":0.0769,"volume":26700,"oi":19200,"iv":0.36880482196117426,"delta":0.39148048117664025},{"contract":"90008239","cp":"C","strike":2.6,"expiry":"2026-12-23","dte":40,"bid":0.0595,"ask":0.06,"last":0.0601,"volume":25067,"oi":28199,"iv":0.36403466881541846,"delta":0.3293195586414899},{"contract":"90008240","cp":"C","strike":2.65,"expiry":"2026-12-23","dte":40,"bid":0.0467,"ask":0.0471,"last":0.0471,"volume":26461,"oi":17664,"iv":0.36463148798558265,"delta":0.2746946078593611},{"contract":"90008219","cp":"C","strike":2.7,"expiry":"2026-12-23","dte":40,"bid":0.0366,"ask":0.0375,"last":0.0375,"volume":32543,"oi":28052,"iv":0.3678093105690312,"delta":0.22784236970191768},{"contract":"90008195","cp":"C","strike":2.75,"expiry":"2026-12-23","dte":40,"bid":0.0293,"ask":0.0294,"last":0.0292,"volume":17644,"oi":17085,"iv":0.3720995529517013,"delta":0.18810003218532972},{"contract":"90008179","cp":"C","strike":2.8,"expiry":"2026-12-23","dte":40,"bid":0.0232,"ask":0.0234,"last":0.0232,"volume":14340,"oi":20251,"iv":0.3769834587427001,"delta":0.15475974946101506},{"contract":"90008167","cp":"C","strike":2.85,"expiry":"2026-12-23","dte":40,"bid":0.0176,"ask":0.0181,"last":0.0176,"volume":10144,"oi":15132,"iv":0.3780949128617833,"delta":0.12419156353972627},{"contract":"90008139","cp":"C","strike":2.9,"expiry":"2026-12-23","dte":40,"bid":0.0141,"ask":0.0142,"last":0.0142,"volume":12700,"oi":19263,"iv":0.38326379454025505,"delta":0.101314911388594},{"contract":"90007933","cp":"C","strike":2.95,"expiry":"2026-12-23","dte":40,"bid":0.0104,"ask":0.0106,"last":0.0106,"volume":7604,"oi":15429,"iv":0.3824149056877323,"delta":0.07894020342063218},{"contract":"90007917","cp":"C","strike":3.0,"expiry":"2026-12-23","dte":40,"bid":0.0087,"ask":0.0088,"last":0.0087,"volume":13274,"oi":18280,"iv":0.39193595714932394,"delta":0.06624520610345641},{"contract":"90007815","cp":"C","strike":3.1,"expiry":"2026-12-23","dte":40,"bid":0.0056,"ask":0.0058,"last":0.0058,"volume":4648,"oi":11977,"iv":0.40423786158617403,"delta":0.044603900641948635},{"contract":"90007485","cp":"C","strike":3.2,"expiry":"2026-12-23","dte":40,"bid":0.0045,"ask":0.0046,"last":0.0046,"volume":4469,"oi":16880,"iv":0.42960620643807723,"delta":0.034814234771727126},{"contract":"90007481","cp":"C","strike":3.3,"expiry":"2026-12-23","dte":40,"bid":0.003,"ask":0.0032,"last":0.0032,"volume":3453,"oi":14227,"iv":0.4413142634423145,"delta":0.024248276702565852},{"contract":"90007411","cp":"C","strike":3.4,"expiry":"2026-12-23","dte":40,"bid":0.0026,"ask":0.0029,"last":0.0027,"volume":2153,"oi":13547,"iv":0.46907585340054714,"delta":0.020697491196942808},{"contract":"90007412","cp":"C","strike":3.5,"expiry":"2026-12-23","dte":40,"bid":0.0024,"ask":0.0025,"last":0.0024,"volume":2958,"oi":18801,"iv":0.4951084113965474,"delta":0.01783009732779156},{"contract":"90007413","cp":"C","strike":3.6,"expiry":"2026-12-23","dte":40,"bid":0.0019,"ask":0.0022,"last":0.0021,"volume":862,"oi":14175,"iv":0.5150233661534174,"delta":0.014691370421637429},{"contract":"90007414","cp":"C","strike":3.7,"expiry":"2026-12-23","dte":40,"bid":0.0016,"ask":0.0018,"last":0.0017,"volume":428,"oi":8721,"iv":0.5327596159460941,"delta":0.012054950537746856},{"contract":"90007415","cp":"C","strike":3.8,"expiry":"2026-12-23","dte":40,"bid":0.0016,"ask":0.0017,"last":0.0016,"volume":407,"oi":10611,"iv":0.5597375603277632,"delta":0.011248325068481002},{"contract":"90007416","cp":"C","strike":3.9,"expiry":"2026-12-23","dte":40,"bid":0.0014,"ask":0.0016,"last":0.0015,"volume":414,"oi":8081,"iv":0.5809830974365091,"delta":0.009993701735709626},{"contract":"90007417","cp":"C","strike":4.0,"expiry":"2026-12-23","dte":40,"bid":0.0012,"ask":0.0013,"last":0.0013,"volume":2142,"oi":9787,"iv":0.5950192890813641,"delta":0.00829565097016921},{"contract":"90007418","cp":"C","strike":4.1,"expiry":"2026-12-23","dte":40,"bid":0.0012,"ask":0.0013,"last":0.0013,"volume":684,"oi":7975,"iv":0.6205879276488293,"delta":0.008001591429431354},{"contract":"90007419","cp":"C","strike":4.2,"expiry":"2026-12-23","dte":40,"bid":0.0013,"ask":0.0015,"last":0.0013,"volume":160,"oi":7493,"iv":0.6537428401614935,"delta":0.008485674616736383},{"contract":"90007505","cp":"C","strike":4.3,"expiry":"2026-12-23","dte":40,"bid":0.001,"ask":0.0012,"last":0.0011,"volume":111,"oi":7299,"iv":0.6600551059534621,"delta":0.0067536580699006366},{"contract":"90007529","cp":"C","strike":4.4,"expiry":"2026-12-23","dte":40,"bid":0.0009,"ask":0.001,"last":0.001,"volume":51,"oi":5574,"iv":0.6725429365215065,"delta":0.005811247670884034},{"contract":"90007545","cp":"C","strike":4.5,"expiry":"2026-12-23","dte":40,"bid":0.001,"ask":0.0012,"last":0.0011,"volume":448,"oi":12780,"iv":0.7056537276223807,"delta":0.006378213600383764},{"contract":"90007649","cp":"C","strike":4.6,"expiry":"2026-12-23","dte":40,"bid":0.0009,"ask":0.0011,"last":0.0009,"volume":1161,"oi":34142,"iv":0.7202250686456912,"delta":0.005743568043233782},{"contract":"90007659","cp":"C","strike":4.7,"expiry":"2026-12-23","dte":40,"bid":0.0007,"ask":0.0008,"last":0.0008,"volume":520,"oi":46279,"iv":0.7199356062153375,"delta":0.004411087970486449},{"contract":"90007675","cp":"C","strike":4.8,"expiry":"2026-12-23","dte":40,"bid":0.0007,"ask":0.0009,"last":0.0009,"volume":666,"oi":55279,"iv":0.7448457716654029,"delta":0.0045462013442408855},{"contract":"90008498","cp":"P","strike":2.2,"expiry":"2026-12-23","dte":40,"bid":0.0455,"ask":0.0457,"last":0.0457,"volume":28899,"oi":19841,"iv":0.44001725015551485,"delta":-0.2106058975910875},{"contract":"90008461","cp":"P","strike":2.25,"expiry":"2026-12-23","dte":40,"bid":0.0575,"ask":0.0576,"last":0.0575,"volume":27720,"oi":15137,"iv":0.4321182710470176,"delta":-0.2548560361526242},{"contract":"90008462","cp":"P","strike":2.3,"expiry":"2026-12-23","dte":40,"bid":0.0715,"ask":0.0723,"last":0.0723,"volume":19950,"oi":15878,"iv":0.424580484359263,"delta":-0.30429051798861306},{"contract":"90008348","cp":"P","strike":2.35,"expiry":"2026-12-23","dte":40,"bid":0.0907,"ask":0.091,"last":0.0908,"volume":20902,"oi":23962,"iv":0.4238603376491744,"delta":-0.3596249936256739},{"contract":"90008321","cp":"P","strike":2.4,"expiry":"2026-12-23","dte":40,"bid":0.1116,"ask":0.1118,"last":0.1118,"volume":30257,"oi":25837,"iv":0.4199158660886305,"delta":-0.41680516401000034},{"contract":"90008322","cp":"P","strike":2.45,"expiry":"2026-12-23","dte":40,"bid":0.1338,"ask":0.1346,"last":0.1346,"volume":23205,"oi":18413,"iv":0.4121123588965194,"delta":-0.4759562491545395},{"contract":"90008292","cp":"P","strike":2.5,"expiry":"2026-12-23","dte":40,"bid":0.1625,"ask":0.1636,"last":0.1625,"volume":24189,"oi":18643,"iv":0.414991225392112,"delta":-0.5343545600679458},{"contract":"90008284","cp":"P","strike":2.55,"expiry":"2026-12-23","dte":40,"bid":0.192,"ask":0.1952,"last":0.1928,"volume":15530,"oi":17633,"iv":0.4143696468687881,"delta":-0.5913105743831656},{"contract":"90008241","cp":"P","strike":2.6,"expiry":"2026-12-23","dte":40,"bid":0.2237,"ask":0.2299,"last":0.2268,"volume":9640,"oi":15382,"iv":0.4136871278242621,"delta":-0.6455435048521819},{"contract":"90008242","cp":"P","strike":2.65,"expiry":"2026-12-23","dte":40,"bid":0.2602,"ask":0.2648,"last":0.2663,"volume":4581,"oi":8323,"iv":0.41309979618019677,"delta":-0.6961398262713677},{"contract":"90008220","cp":"P","strike":2.7,"expiry":"2026-12-23","dte":40,"bid":0.2995,"ask":0.3078,"last":0.3044,"volume":1509,"oi":4266,"iv":0.42470510205782275,"delta":-0.7351498796359892},{"contract":"90008196","cp":"P","strike":2.75,"expiry":"2026-12-23","dte":40,"bid":0.3408,"ask":0.3502,"last":0.3523,"volume":772,"oi":2989,"iv":0.43310857796566016,"delta":-0.7708026706911202},{"contract":"90008180","cp":"P","strike":2.8,"expiry":"2026-12-23","dte":40,"bid":0.3839,"ask":0.3945,"last":0.3911,"volume":770,"oi":3724,"iv":0.44373605518850545,"delta":-0.8003634677355423},{"contract":"90008168","cp":"P","strike":2.85,"expiry":"2026-12-23","dte":40,"bid":0.4281,"ask":0.4399,"last":0.4392,"volume":269,"oi":4186,"iv":0.4546465301735839,"delta":-0.8255494858946311},{"contract":"90008140","cp":"P","strike":2.9,"expiry":"2026-12-23","dte":40,"bid":0.4733,"ask":0.4864,"last":0.4809,"volume":796,"oi":5196,"iv":0.46661702445181574,"delta":-0.8464605168468272},{"contract":"90007934","cp":"P","strike":2.95,"expiry":"2026-12-23","dte":40,"bid":0.522,"ask":0.5339,"last":0.5245,"volume":695,"oi":22004,"iv":0.48748224806790863,"delta":-0.8592202487004524},{"contract":"90007918","cp":"P","strike":3.0,"expiry":"2026-12-23","dte":40,"bid":0.5675,"ask":0.58,"last":0.5727,"volume":357,"oi":21455,"iv":0.4925862802058041,"delta":-0.8784054925244152},{"contract":"90007816","cp":"P","strike":3.1,"expiry":"2026-12-23","dte":40,"bid":0.6641,"ask":0.6786,"last":0.6636,"volume":167,"oi":3840,"iv":0.5324237353929397,"delta":-0.8949103634557627},{"contract":"90007486","cp":"P","strike":3.2,"expiry":"2026-12-23","dte":40,"bid":0.762,"ask":0.7774,"last":0.7755,"volume":77,"oi":4023,"iv":0.5723946720665014,"delta":-0.9066409157888944},{"contract":"90007482","cp":"P","strike":3.3,"expiry":"2026-12-23","dte":40,"bid":0.8605,"ask":0.8763,"last":0.871,"volume":238,"oi":7333,"iv":0.6110975146738218,"delta":-0.9156558826105247},{"contract":"90007420","cp":"P","strike":3.4,"expiry":"2026-12-23","dte":40,"bid":0.9595,"ask":0.9752,"last":0.9603,"volume":303,"oi":5685,"iv":0.6486138066710536,"delta":-0.9227463452261669},{"contract":"90007421","cp":"P","strike":3.5,"expiry":"2026-12-23","dte":40,"bid":1.0587,"ask":1.0744,"last":1.062,"volume":145,"oi":4363,"iv":0.6856162406806126,"delta":-0.9282315623679119},{"contract":"90007422","cp":"P","strike":3.6,"expiry":"2026-12-23","dte":40,"bid":1.1581,"ask":1.1738,"last":1.1699,"volume":12,"oi":2384,"iv":0.722218047704797,"delta":-0.9324948479015407},{"contract":"90007423","cp":"P","strike":3.7,"expiry":"2026-12-23","dte":40,"bid":1.2576,"ask":1.2733,"last":1.2544,"volume":7,"oi":758,"iv":0.7578751516959679,"delta":-0.9359946398376348},{"contract":"90007424","cp":"P","strike":3.8,"expiry":"2026-12-23","dte":40,"bid":1.3572,"ask":1.3729,"last":1.3529,"volume":7,"oi":658,"iv":0.7928588391038969,"delta":-0.9388410439349114},{"contract":"90007425","cp":"P","strike":3.9,"expiry":"2026-12-23","dte":40,"bid":1.4568,"ask":1.4725,"last":1.4402,"volume":204,"oi":688,"iv":0.8263482015961643,"delta":-0.9413948886208605},{"contract":"90007426","cp":"P","strike":4.0,"expiry":"2026-12-23","dte":40,"bid":1.5566,"ask":1.5722,"last":1.5695,"volume":2,"oi":731,"iv":0.8600877163488354,"delta":-0.9433014749890889},{"contract":"90007427","cp":"P","strike":4.1,"expiry":"2026-12-23","dte":40,"bid":1.6563,"ask":1.6719,"last":1.66,"volume":20,"oi":427,"iv":0.8920754644675866,"delta":-0.9451514087098873},{"contract":"90007428","cp":"P","strike":4.2,"expiry":"2026-12-23","dte":40,"bid":1.756,"ask":1.7716,"last":1.7597,"volume":10,"oi":419,"iv":0.9229241332170057,"delta":-0.9468361217728499},{"contract":"90007506","cp":"P","strike":4.3,"expiry":"2026-12-23","dte":40,"bid":1.8557,"ask":1.8714,"last":1.8458,"volume":6,"oi":426,"iv":0.9532929414337297,"delta":-0.9482528732559635},{"contract":"90007530","cp":"P","strike":4.4,"expiry":"2026-12-23","dte":40,"bid":1.9555,"ask":1.9712,"last":1.9456,"volume":4,"oi":890,"iv":0.9832850731031113,"delta":-0.9494279314361609},{"contract":"90007546","cp":"P","strike":4.5,"expiry":"2026-12-23","dte":40,"bid":2.0553,"ask":2.0709,"last":2.0591,"volume":7,"oi":3928,"iv":1.0117818333654531,"delta":-0.9506260343391744},{"contract":"90007650","cp":"P","strike":4.6,"expiry":"2026-12-23","dte":40,"bid":2.1551,"ask":2.1707,"last":2.145,"volume":12,"oi":1197,"iv":1.0400363643358386,"delta":-0.9516145252813196},{"contract":"90007660","cp":"P","strike":4.7,"expiry":"2026-12-23","dte":40,"bid":2.2548,"ask":2.2704,"last":2.2446,"volume":2,"oi":1809,"iv":1.066249025053776,"delta":-0.9527619497216313},{"contract":"90007676","cp":"P","strike":4.8,"expiry":"2026-12-23","dte":40,"bid":2.3546,"ask":2.3702,"last":2.359,"volume":22,"oi":5127,"iv":1.092950613140851,"delta":-0.9536037497897942}]},"159919":{"underlying_close":4.266,"contracts":[{"contract":"90008471","cp":"C","strike":3.8,"expiry":"2026-11-25","dte":12,"bid":0.4457,"ask":0.4461,"last":0.4457,"volume":148,"oi":142,"iv":null,"delta":0.9998961357433809},{"contract":"90008329","cp":"C","strike":3.9,"expiry":"2026-11-25","dte":12,"bid":0.3406,"ask":0.3458,"last":0.3469,"volume":121,"oi":213,"iv":null,"delta":0.99804095655068},{"contract":"90008249","cp":"C","strike":4.0,"expiry":"2026-11-25","dte":12,"bid":0.25,"ask":0.2543,"last":0.25,"volume":356,"oi":476,"iv":null,"delta":0.9812747765100724},{"contract":"90008201","cp":"C","strike":4.1,"expiry":"2026-11-25","dte":12,"bid":0.1563,"ask":0.1591,"last":0.1563,"volume":979,"oi":1049,"iv":null,"delta":0.9026511539950597},{"contract":"90008145","cp":"C","strike":4.2,"expiry":"2026-11-25","dte":12,"bid":0.0762,"ask":0.0765,"last":0.0762,"volume":3424,"oi":5202,"iv":0.0991668618894305,"delta":0.8193019137969679},{"contract":"90008123","cp":"C","strike":4.3,"expiry":"2026-11-25","dte":12,"bid":0.026,"ask":0.0261,"last":0.026,"volume":7808,"oi":6829,"iv":0.12820242916103053,"delta":0.38148142355078146},{"contract":"90008083","cp":"C","strike":4.4,"expiry":"2026-11-25","dte":12,"bid":0.0069,"ask":0.0071,"last":0.0066,"volume":5754,"oi":11938,"iv":0.14467665901404897,"delta":0.12697603682256575},{"contract":"90008084","cp":"C","strike":4.5,"expiry":"2026-11-25","dte":12,"bid":0.0018,"ask":0.002,"last":0.002,"volume":2836,"oi":11409,"iv":0.16267628399898432,"delta":0.03808296779678233},{"contract":"90008085","cp":"C","strike":4.6,"expiry":"2026-11-25","dte":12,"bid":0.0006,"ask":0.0007,"last":0.0007,"volume":2493,"oi":7537,"iv":0.18421266308381196,"delta":0.013195786145406563},{"contract":"90008086","cp":"C","strike":4.7,"expiry":"2026-11-25","dte":12,"bid":0.0002,"ask":0.0005,"last":0.0004,"volume":567,"oi":4008,"iv":0.21261673869596792,"delta":0.006627918390747833},{"contract":"90008087","cp":"C","strike":4.8,"expiry":"2026-11-25","dte":12,"bid":0.0003,"ask":0.0005,"last":0.0003,"volume":110,"oi":3514,"iv":0.2569369933957637,"delta":0.006312972107175796},{"contract":"90008088","cp":"C","strike":4.9,"expiry":"2026-11-25","dte":12,"bid":0.0001,"ask":0.0005,"last":0.0003,"volume":8326,"oi":3357,"iv":0.28734787154218244,"delta":0.004387288915302268},{"contract":"90008089","cp":"C","strike":5.0,"expiry":"2026-11-25","dte":12,"bid":0.0001,"ask":0.0004,"last":0.0001,"volume":506,"oi":2547,"iv":0.31854939281580485,"delta":0.0033802917558831136},{"contract":"90008090","cp":"C","strike":5.25,"expiry":"2026-11-25","dte":12,"bid":0.0001,"ask":0.0002,"last":0.0002,"volume":460,"oi":2680,"iv":0.3865578338759772,"delta":0.0017683863065406369},{"contract":"90008091","cp":"C","strike":5.5,"expiry":"2026-11-25","dte":12,"bid":0.0001,"ask":0.0003,"last":0.0002,"volume":442,"oi":3137,"iv":0.476085984756735,"delta":0.0019111561312917802},{"contract":"90008472","cp":"P","strike":3.8,"expiry":"2026-11-25","dte":12,"bid":0.0002,"ask":0.0006,"last":0.0003,"volume":1081,"oi":3339,"iv":0.2585262319076854,"delta":-0.006119671969927243},{"contract":"90008330","cp":"P","strike":3.9,"expiry":"2026-11-25","dte":12,"bid":0.0011,"ask":0.0013,"last":0.0011,"volume":1664,"oi":3725,"iv":0.23927606735951662,"delta":-0.017673247910193313},{"contract":"90008250","cp":"P","strike":4.0,"expiry":"2026-11-25","dte":12,"bid":0.003,"ask":0.0032,"last":0.003,"volume":1931,"oi":3928,"iv":0.21394117707222388,"delta":-0.04493926986066343},{"contract":"90008202","cp":"P","strike":4.1,"expiry":"2026-11-25","dte":12,"bid":0.0094,"ask":0.0097,"last":0.0095,"volume":5743,"oi":6238,"iv":0.19629755002185822,"delta":-0.12478769026082082},{"contract":"90008146","cp":"P","strike":4.2,"expiry":"2026-11-25","dte":12,"bid":0.0299,"ask":0.0301,"last":0.03,"volume":3945,"oi":6666,"iv":0.18953768878814964,"delta":-0.31206271699019106},{"contract":"90008124","cp":"P","strike":4.3,"expiry":"2026-11-25","dte":12,"bid":0.0805,"ask":0.0808,"last":0.0806,"volume":7365,"oi":8133,"iv":0.20619110644567773,"delta":-0.569873851923546},{"contract":"90008092","cp":"P","strike":4.4,"expiry":"2026-11-25","dte":12,"bid":0.1616,"ask":0.1625,"last":0.1618,"volume":3567,"oi":5476,"iv":0.25529391568890325,"delta":-0.7359104974985144},{"contract":"90008093","cp":"P","strike":4.5,"expiry":"2026-11-25","dte":12,"bid":0.2576,"ask":0.2596,"last":0.2546,"volume":1465,"oi":2008,"iv":0.33157432300722967,"delta":-0.801565606352561},{"contract":"90008094","cp":"P","strike":4.6,"expiry":"2026-11-25","dte":12,"bid":0.3545,"ask":0.3602,"last":0.3557,"volume":243,"oi":527,"iv":0.4059624091590479,"delta":-0.8360419976227459},{"contract":"90008095","cp":"P","strike":4.7,"expiry":"2026-11-25","dte":12,"bid":0.4536,"ask":0.4609,"last":0.4558,"volume":107,"oi":433,"iv":0.4795437860943089,"delta":-0.8561603699014259},{"contract":"90008096","cp":"P","strike":4.8,"expiry":"2026-11-25","dte":12,"bid":0.553,"ask":0.5608,"last":0.5553,"volume":57,"oi":479,"iv":0.546928157528072,"delta":-0.8714065342529973},{"contract":"90008097","cp":"P","strike":4.9,"expiry":"2026-11-25","dte":12,"bid":0.6522,"ask":0.6608,"last":0.6509,"volume":97,"oi":384,"iv":0.6100201908240386,"delta":-0.8832605679554586},{"contract":"90008098","cp":"P","strike":5.0,"expiry":"2026-11-25","dte":12,"bid":0.7512,"ask":0.7624,"last":0.0,"volume":0,"oi":275,"iv":0.6745992147066953,"delta":-0.890914359366068},{"contract":"90008099","cp":"P","strike":5.25,"expiry":"2026-11-25","dte":12,"bid":0.9982,"ask":1.0113,"last":1.0057,"volume":37,"oi":232,"iv":0.8040685701401982,"delta":-0.9108801950897085},{"contract":"90008100","cp":"P","strike":5.5,"expiry":"2026-11-25","dte":12,"bid":1.2461,"ask":1.2616,"last":1.2556,"volume":18,"oi":185,"iv":0.9277691025942416,"delta":-0.922531845168223},{"contract":"90008473","cp":"C","strike":3.8,"expiry":"2026-12-23","dte":40,"bid":0.4233,"ask":0.4307,"last":0.4306,"volume":29,"oi":43,"iv":null,"delta":0.9811703759036535},{"contract":"90008331","cp":"C","strike":3.9,"expiry":"2026-12-23","dte":40,"bid":0.3304,"ask":0.3375,"last":0.3342,"volume":12,"oi":183,"iv":null,"delta":0.9481115844596621},{"contract":"90008251","cp":"C","strike":4.0,"expiry":"2026-12-23","dte":40,"bid":0.2435,"ask":0.2498,"last":0.2479,"volume":130,"oi":795,"iv":null,"delta":0.8822912976493433},{"contract":"90008203","cp":"C","strike":4.1,"expiry":"2026-12-23","dte":40,"bid":0.1668,"ask":0.1714,"last":0.1691,"volume":495,"oi":1827,"iv":null,"delta":0.7755043092607444},{"contract":"90008147","cp":"C","strike":4.2,"expiry":"2026-12-23","dte":40,"bid":0.105,"ask":0.1068,"last":0.1067,"volume":697,"oi":2608,"iv":0.10938698777174288,"delta":0.6946989062714313},{"contract":"90008043","cp":"C","strike":4.3,"expiry":"2026-12-23","dte":40,"bid":0.0607,"ask":0.061,"last":0.061,"volume":1024,"oi":4095,"iv":0.12828889813729338,"delta":0.4545877380022677},{"contract":"90007821","cp":"C","strike":4.4,"expiry":"2026-12-23","dte":40,"bid":0.0317,"ask":0.0318,"last":0.0318,"volume":640,"oi":3845,"iv":0.13789906752509612,"delta":0.2720392466967304},{"contract":"90007635","cp":"C","strike":4.5,"expiry":"2026-12-23","dte":40,"bid":0.0156,"ask":0.0166,"last":0.0157,"volume":741,"oi":2975,"iv":0.14717105719290224,"delta":0.15227357381573925},{"contract":"90007429","cp":"C","strike":4.6,"expiry":"2026-12-23","dte":40,"bid":0.0083,"ask":0.0086,"last":0.0084,"volume":943,"oi":2700,"iv":0.15777849166587782,"delta":0.08454874746104918},{"contract":"90007430","cp":"C","strike":4.7,"expiry":"2026-12-23","dte":40,"bid":0.0044,"ask":0.0047,"last":0.0045,"volume":683,"oi":3077,"iv":0.1682274962151294,"delta":0.047210836324447336},{"contract":"90007431","cp":"C","strike":4.8,"expiry":"2026-12-23","dte":40,"bid":0.0026,"ask":0.0029,"last":0.0027,"volume":313,"oi":2718,"iv":0.18094679960029136,"delta":0.028561967858586557},{"contract":"90007432","cp":"C","strike":4.9,"expiry":"2026-12-23","dte":40,"bid":0.0015,"ask":0.0018,"last":0.0016,"volume":383,"oi":3255,"iv":0.19193509332246328,"delta":0.01723914010223848},{"contract":"90007433","cp":"C","strike":5.0,"expiry":"2026-12-23","dte":40,"bid":0.0009,"ask":0.0014,"last":0.0014,"volume":218,"oi":3969,"iv":0.20564880186361606,"delta":0.011731820305387997},{"contract":"90007434","cp":"C","strike":5.25,"expiry":"2026-12-23","dte":40,"bid":0.0004,"ask":0.001,"last":0.0009,"volume":66,"oi":5216,"iv":0.2451944575343739,"delta":0.006397627553068719},{"contract":"90007435","cp":"C","strike":5.5,"expiry":"2026-12-23","dte":40,"bid":0.0003,"ask":0.0009,"last":0.0009,"volume":9,"oi":3629,"iv":0.2885135808521089,"delta":0.0048065182733738054},{"contract":"90007436","cp":"C","strike":5.75,"expiry":"2026-12-23","dte":40,"bid":0.0001,"ask":0.0005,"last":0.0005,"volume":51,"oi":3204,"iv":0.31129519153925134,"delta":0.0023711995179565015},{"contract":"90007437","cp":"C","strike":6.0,"expiry":"2026-12-23","dte":40,"bid":0.0002,"ask":0.0009,"last":0.0008,"volume":234,"oi":5183,"iv":0.3716540112282726,"delta":0.0035411294448300934},{"contract":"90007513","cp":"C","strike":6.25,"expiry":"2026-12-23","dte":40,"bid":0.0004,"ask":0.0008,"last":0.0007,"volume":82,"oi":9509,"iv":0.41451387034283516,"delta":0.0034822133166525493},{"contract":"90008474","cp":"P","strike":3.8,"expiry":"2026-12-23","dte":40,"bid":0.0076,"ask":0.0077,"last":0.0076,"volume":464,"oi":996,"iv":0.22758397951970838,"delta":-0.05456194415084392},{"contract":"90008332","cp":"P","strike":3.9,"expiry":"2026-12-23","dte":40,"bid":0.0141,"ask":0.0146,"last":0.0142,"volume":516,"oi":1708,"iv":0.21879943043355193,"delta":-0.09596655946343446},{"contract":"90008252","cp":"P","strike":4.0,"expiry":"2026-12-23","dte":40,"bid":0.0255,"ask":0.0259,"last":0.0258,"volume":244,"oi":1714,"iv":0.2094737361155512,"delta":-0.1599367832877473},{"contract":"90008204","cp":"P","strike":4.1,"expiry":"2026-12-23","dte":40,"bid":0.047,"ask":0.0472,"last":0.0471,"volume":615,"oi":1936,"iv":0.20634439464383775,"delta":-0.25872730815706735},{"contract":"90008148","cp":"P","strike":4.2,"expiry":"2026-12-23","dte":40,"bid":0.0821,"ask":0.0841,"last":0.084,"volume":680,"oi":2697,"iv":0.2093274348553012,"delta":-0.3854172135438997},{"contract":"90008044","cp":"P","strike":4.3,"expiry":"2026-12-23","dte":40,"bid":0.1362,"ask":0.1366,"last":0.1365,"volume":1284,"oi":4440,"iv":0.21901158680797372,"delta":-0.5171533722913282},{"contract":"90007822","cp":"P","strike":4.4,"expiry":"2026-12-23","dte":40,"bid":0.2069,"ask":0.2129,"last":0.2102,"volume":654,"oi":6525,"iv":0.24317075130539767,"delta":-0.6242725638577273},{"contract":"90007636","cp":"P","strike":4.5,"expiry":"2026-12-23","dte":40,"bid":0.2914,"ask":0.298,"last":0.2932,"volume":146,"oi":2709,"iv":0.2733665032021386,"delta":-0.6986852897607037},{"contract":"90007438","cp":"P","strike":4.6,"expiry":"2026-12-23","dte":40,"bid":0.3833,"ask":0.3904,"last":0.3854,"volume":93,"oi":1761,"iv":0.3089407427846532,"delta":-0.7468086205954488},{"contract":"90007439","cp":"P","strike":4.7,"expiry":"2026-12-23","dte":40,"bid":0.4787,"ask":0.4863,"last":0.4788,"volume":13,"oi":1737,"iv":0.3462652571095478,"delta":-0.7789885376198723},{"contract":"90007440","cp":"P","strike":4.8,"expiry":"2026-12-23","dte":40,"bid":0.5763,"ask":0.5842,"last":0.5764,"volume":14,"oi":1628,"iv":0.384576008796946,"delta":-0.8010886750821758},{"contract":"90007441","cp":"P","strike":4.9,"expiry":"2026-12-23","dte":40,"bid":0.6752,"ask":0.6831,"last":0.6753,"volume":7,"oi":2225,"iv":0.422929674159379,"delta":-0.8170000888911971},{"contract":"90007442","cp":"P","strike":5.0,"expiry":"2026-12-23","dte":40,"bid":0.7753,"ask":0.7829,"last":0.7754,"volume":27,"oi":2450,"iv":0.4619279229219674,"delta":-0.8282881049668392},{"contract":"90007443","cp":"P","strike":5.25,"expiry":"2026-12-23","dte":40,"bid":1.0235,"ask":1.0246,"last":1.0175,"volume":91,"oi":3011,"iv":0.5371063892631631,"delta":-0.8568037902031668},{"contract":"90007444","cp":"P","strike":5.5,"expiry":"2026-12-23","dte":40,"bid":1.2714,"ask":1.2818,"last":1.2528,"volume":1,"oi":1306,"iv":0.6271307069260357,"delta":-0.8663819492659504},{"contract":"90007445","cp":"P","strike":5.75,"expiry":"2026-12-23","dte":40,"bid":1.5199,"ask":1.5311,"last":0.0,"volume":0,"oi":947,"iv":0.6991124620883595,"delta":-0.8779270306965702},{"contract":"90007446","cp":"P","strike":6.0,"expiry":"2026-12-23","dte":40,"bid":1.7689,"ask":1.7811,"last":0.0,"volume":0,"oi":438,"iv":0.7677290213723424,"delta":-0.8861586423791838},{"contract":"90007514","cp":"P","strike":6.25,"expiry":"2026-12-23","dte":40,"bid":2.0171,"ask":2.03,"last":0.0,"volume":0,"oi":347,"iv":0.8281679211528696,"delta":-0.8939721623416621}]},"159922":{"underlying_close":2.639,"contracts":[{"contract":"90008479","cp":"C","strike":2.35,"expiry":"2026-11-25","dte":12,"bid":0.2739,"ask":0.279,"last":0.2954,"volume":219,"oi":253,"iv":null,"delta":0.9911490152509663},{"contract":"90008480","cp":"C","strike":2.4,"expiry":"2026-11-25","dte":12,"bid":0.2302,"ask":0.2308,"last":0.2294,"volume":382,"oi":772,"iv":null,"delta":0.9743033341805974},{"contract":"90008353","cp":"C","strike":2.45,"expiry":"2026-11-25","dte":12,"bid":0.1817,"ask":0.183,"last":0.1794,"volume":306,"oi":2553,"iv":null,"delta":0.9373993673884238},{"contract":"90008337","cp":"C","strike":2.5,"expiry":"2026-11-25","dte":12,"bid":0.1379,"ask":0.1397,"last":0.1381,"volume":1078,"oi":2323,"iv":null,"delta":0.8700878986927689},{"contract":"90008259","cp":"C","strike":2.55,"expiry":"2026-11-25","dte":12,"bid":0.0973,"ask":0.1004,"last":0.0977,"volume":2189,"oi":3165,"iv":0.1982108128086636,"delta":0.8391167947680838},{"contract":"90008260","cp":"C","strike":2.6,"expiry":"2026-11-25","dte":12,"bid":0.0647,"ask":0.0662,"last":0.0652,"volume":3855,"oi":7015,"iv":0.22171262085741428,"delta":0.6579272750498091},{"contract":"90008225","cp":"C","strike":2.65,"expiry":"2026-11-25","dte":12,"bid":0.0399,"ask":0.04,"last":0.04,"volume":11447,"oi":8267,"iv":0.23233314648595454,"delta":0.47525415329915266},{"contract":"90008185","cp":"C","strike":2.7,"expiry":"2026-11-25","dte":12,"bid":0.0211,"ask":0.0216,"last":0.0211,"volume":13716,"oi":9052,"iv":0.23253900722987464,"delta":0.3066748520633602},{"contract":"90008173","cp":"C","strike":2.75,"expiry":"2026-11-25","dte":12,"bid":0.0117,"ask":0.0125,"last":0.0125,"volume":10415,"oi":9710,"iv":0.24781392301513816,"delta":0.1894756880089844},{"contract":"90008153","cp":"C","strike":2.8,"expiry":"2026-11-25","dte":12,"bid":0.0061,"ask":0.0063,"last":0.0062,"volume":9440,"oi":11272,"iv":0.2557029157310058,"delta":0.10750446669470748},{"contract":"90008125","cp":"C","strike":2.85,"expiry":"2026-11-25","dte":12,"bid":0.0031,"ask":0.0035,"last":0.0031,"volume":6145,"oi":10799,"iv":0.2675447682123695,"delta":0.060836861333599224},{"contract":"90008101","cp":"C","strike":2.9,"expiry":"2026-11-25","dte":12,"bid":0.0016,"ask":0.0021,"last":0.0021,"volume":3257,"oi":5673,"iv":0.28164762706242863,"delta":0.03527595714068399},{"contract":"90008102","cp":"C","strike":2.95,"expiry":"2026-11-25","dte":12,"bid":0.0008,"ask":0.0012,"last":0.001,"volume":1504,"oi":2462,"iv":0.29301006553170283,"delta":0.019796855832493188},{"contract":"90008103","cp":"C","strike":3.0,"expiry":"2026-11-25","dte":12,"bid":0.0003,"ask":0.0008,"last":0.0005,"volume":4148,"oi":7404,"iv":0.30438813228565187,"delta":0.011199431181430353},{"contract":"90008104","cp":"C","strike":3.1,"expiry":"2026-11-25","dte":12,"bid":0.0005,"ask":0.0009,"last":0.0006,"volume":4069,"oi":12986,"iv":0.3824474905687246,"delta":0.011375355071738757},{"contract":"90008105","cp":"C","strike":3.2,"expiry":"2026-11-25","dte":12,"bid":0.0002,"ask":0.0008,"last":0.0003,"volume":879,"oi":4285,"iv":0.42927678785635304,"delta":0.007570302599128942},{"contract":"90008106","cp":"C","strike":3.3,"expiry":"2026-11-25","dte":12,"bid":0.0001,"ask":0.0002,"last":0.0002,"volume":722,"oi":2820,"iv":0.43176491633786784,"delta":0.002495521426097602},{"contract":"90008107","cp":"C","strike":3.4,"expiry":"2026-11-25","dte":12,"bid":0.0001,"ask":0.0007,"last":0.0002,"volume":152,"oi":1818,"iv":0.5325045363202516,"delta":0.00509795928845147},{"contract":"90008108","cp":"C","strike":3.5,"expiry":"2026-11-25","dte":12,"bid":0.0001,"ask":0.0007,"last":0.0002,"volume":186,"oi":3363,"iv":0.5859298801614397,"delta":0.0046821036517283865},{"contract":"90008109","cp":"C","strike":3.6,"expiry":"2026-11-25","dte":12,"bid":0.0001,"ask":0.0007,"last":0.0001,"volume":679,"oi":4558,"iv":0.6372684962259143,"delta":0.004345237306631167},{"contract":"90008481","cp":"P","strike":2.35,"expiry":"2026-11-25","dte":12,"bid":0.0031,"ask":0.004,"last":0.0034,"volume":3180,"oi":3317,"iv":0.38812858510463044,"delta":-0.045263802249049134},{"contract":"90008482","cp":"P","strike":2.4,"expiry":"2026-11-25","dte":12,"bid":0.0051,"ask":0.0058,"last":0.0055,"volume":4187,"oi":5018,"iv":0.3637327501701294,"delta":-0.06912352336943206},{"contract":"90008354","cp":"P","strike":2.45,"expiry":"2026-11-25","dte":12,"bid":0.0084,"ask":0.0087,"last":0.0087,"volume":5831,"oi":5859,"iv":0.34053767112992606,"delta":-0.10655994190707041},{"contract":"90008338","cp":"P","strike":2.5,"expiry":"2026-11-25","dte":12,"bid":0.0145,"ask":0.0146,"last":0.0145,"volume":5329,"oi":5842,"iv":0.3263104984937172,"delta":-0.16973215243273154},{"contract":"90008261","cp":"P","strike":2.55,"expiry":"2026-11-25","dte":12,"bid":0.0245,"ask":0.0248,"last":0.0245,"volume":7347,"oi":7074,"iv":0.31604682193489475,"delta":-0.26147940718688023},{"contract":"90008262","cp":"P","strike":2.6,"expiry":"2026-11-25","dte":12,"bid":0.04,"ask":0.0402,"last":0.0401,"volume":9754,"oi":7130,"iv":0.3073133906424981,"delta":-0.3794763523439304},{"contract":"90008226","cp":"P","strike":2.65,"expiry":"2026-11-25","dte":12,"bid":0.0636,"ask":0.0643,"last":0.0642,"volume":14027,"oi":7239,"iv":0.3096469528281155,"delta":-0.5136820687544934},{"contract":"90008186","cp":"P","strike":2.7,"expiry":"2026-11-25","dte":12,"bid":0.0975,"ask":0.098,"last":0.0977,"volume":18950,"oi":7180,"iv":0.33063490120027816,"delta":-0.633159511824503},{"contract":"90008174","cp":"P","strike":2.75,"expiry":"2026-11-25","dte":12,"bid":0.1372,"ask":0.1376,"last":0.1372,"volume":6916,"oi":6095,"iv":0.35731922267569616,"delta":-0.7235370041242474},{"contract":"90008154","cp":"P","strike":2.8,"expiry":"2026-11-25","dte":12,"bid":0.1788,"ask":0.179,"last":0.179,"volume":2154,"oi":5663,"iv":0.3737911983976656,"delta":-0.7967778491722779},{"contract":"90008126","cp":"P","strike":2.85,"expiry":"2026-11-25","dte":12,"bid":0.2275,"ask":0.2307,"last":0.2299,"volume":610,"oi":3067,"iv":0.4414099715057552,"delta":-0.819331015217465},{"contract":"90008110","cp":"P","strike":2.9,"expiry":"2026-11-25","dte":12,"bid":0.2757,"ask":0.2803,"last":0.2727,"volume":115,"oi":1602,"iv":0.49408359247622124,"delta":-0.8414887002422353},{"contract":"90008111","cp":"P","strike":2.95,"expiry":"2026-11-25","dte":12,"bid":0.3233,"ask":0.331,"last":0.3168,"volume":94,"oi":592,"iv":0.544550344443981,"delta":-0.8582000328606811},{"contract":"90008112","cp":"P","strike":3.0,"expiry":"2026-11-25","dte":12,"bid":0.3727,"ask":0.3773,"last":0.3585,"volume":220,"oi":839,"iv":0.578206735334343,"delta":-0.87783654637191},{"contract":"90008113","cp":"P","strike":3.1,"expiry":"2026-11-25","dte":12,"bid":0.4721,"ask":0.4834,"last":0.4786,"volume":86,"oi":375,"iv":0.7101959781392246,"delta":-0.8811574514652755},{"contract":"90008114","cp":"P","strike":3.2,"expiry":"2026-11-25","dte":12,"bid":0.5715,"ask":0.5834,"last":0.5681,"volume":73,"oi":351,"iv":0.8042312855575711,"delta":-0.8933229398058395},{"contract":"90008115","cp":"P","strike":3.3,"expiry":"2026-11-25","dte":12,"bid":0.6712,"ask":0.6835,"last":0.6677,"volume":70,"oi":285,"iv":0.8944039092077545,"delta":-0.9020216714966593},{"contract":"90008116","cp":"P","strike":3.4,"expiry":"2026-11-25","dte":12,"bid":0.7706,"ask":0.7833,"last":0.7733,"volume":168,"oi":466,"iv":0.97566467258137,"delta":-0.9098907139338652},{"contract":"90008117","cp":"P","strike":3.5,"expiry":"2026-11-25","dte":12,"bid":0.8708,"ask":0.8838,"last":0.8729,"volume":140,"oi":721,"iv":1.0622081852457526,"delta":-0.9140859861138512},{"contract":"90008118","cp":"P","strike":3.6,"expiry":"2026-11-25","dte":12,"bid":0.9705,"ask":0.9839,"last":0.9737,"volume":143,"oi":1372,"iv":1.1391057173020092,"delta":-0.9187986009561298},{"contract":"90008483","cp":"C","strike":2.35,"expiry":"2026-12-23","dte":40,"bid":0.2748,"ask":0.2787,"last":0.2818,"volume":132,"oi":182,"iv":null,"delta":0.9111309009326163},{"contract":"90008484","cp":"C","strike":2.4,"expiry":"2026-12-23","dte":40,"bid":0.2343,"ask":0.2363,"last":0.2516,"volume":154,"oi":198,"iv":null,"delta":0.8677310365182849},{"contract":"90008355","cp":"C","strike":2.45,"expiry":"2026-12-23","dte":40,"bid":0.196,"ask":0.1962,"last":0.1923,"volume":189,"oi":574,"iv":0.13122777955859855,"delta":0.9626888825013673},{"contract":"90008339","cp":"C","strike":2.5,"expiry":"2026-12-23","dte":40,"bid":0.1576,"ask":0.16,"last":0.1597,"volume":731,"oi":988,"iv":0.18090906597877882,"delta":0.8339872409891644},{"contract":"90008263","cp":"C","strike":2.55,"expiry":"2026-12-23","dte":40,"bid":0.1253,"ask":0.1271,"last":0.1269,"volume":844,"oi":1270,"iv":0.20110944922699603,"delta":0.7195525317507505},{"contract":"90008264","cp":"C","strike":2.6,"expiry":"2026-12-23","dte":40,"bid":0.0972,"ask":0.0985,"last":0.0978,"volume":1527,"oi":2592,"iv":0.21229727643439106,"delta":0.6095610980891009},{"contract":"90008227","cp":"C","strike":2.65,"expiry":"2026-12-23","dte":40,"bid":0.0732,"ask":0.0738,"last":0.073,"volume":4041,"oi":3613,"iv":0.2180981325921203,"delta":0.5035285519146657},{"contract":"90008187","cp":"C","strike":2.7,"expiry":"2026-12-23","dte":40,"bid":0.0543,"ask":0.0549,"last":0.0545,"volume":2972,"oi":3994,"iv":0.22470406348994298,"delta":0.4049542106401582},{"contract":"90007941","cp":"C","strike":2.75,"expiry":"2026-12-23","dte":40,"bid":0.0389,"ask":0.0392,"last":0.0389,"volume":1875,"oi":3512,"iv":0.22778979466127286,"delta":0.3157551009580858},{"contract":"90007831","cp":"C","strike":2.8,"expiry":"2026-12-23","dte":40,"bid":0.0278,"ask":0.028,"last":0.0283,"volume":1272,"oi":2874,"iv":0.23274585705936562,"delta":0.24145650802061058},{"contract":"90007832","cp":"C","strike":2.85,"expiry":"2026-12-23","dte":40,"bid":0.0193,"ask":0.0198,"last":0.0193,"volume":1200,"oi":2384,"iv":0.23687610992192987,"delta":0.1804241919707668},{"contract":"90007639","cp":"C","strike":2.9,"expiry":"2026-12-23","dte":40,"bid":0.0133,"ask":0.014,"last":0.0131,"volume":984,"oi":2806,"iv":0.24149587245275078,"delta":0.13300448035030565},{"contract":"90007483","cp":"C","strike":2.95,"expiry":"2026-12-23","dte":40,"bid":0.0092,"ask":0.0093,"last":0.0094,"volume":567,"oi":3614,"iv":0.24460523015182717,"delta":0.09539480532690914},{"contract":"90007447","cp":"C","strike":3.0,"expiry":"2026-12-23","dte":40,"bid":0.0065,"ask":0.0072,"last":0.0069,"volume":923,"oi":6608,"iv":0.25323692299819156,"delta":0.07196228056568155},{"contract":"90007448","cp":"C","strike":3.1,"expiry":"2026-12-23","dte":40,"bid":0.0038,"ask":0.0039,"last":0.0034,"volume":1735,"oi":9974,"iv":0.2698545396001516,"delta":0.04154238605480087},{"contract":"90007449","cp":"C","strike":3.2,"expiry":"2026-12-23","dte":40,"bid":0.0016,"ask":0.0025,"last":0.0025,"volume":573,"oi":10169,"iv":0.2818550801546883,"delta":0.022986068357326916},{"contract":"90007450","cp":"C","strike":3.3,"expiry":"2026-12-23","dte":40,"bid":0.0012,"ask":0.0019,"last":0.0018,"volume":356,"oi":4267,"iv":0.3067913287821402,"delta":0.0166474610586545},{"contract":"90007451","cp":"C","strike":3.4,"expiry":"2026-12-23","dte":40,"bid":0.001,"ask":0.0016,"last":0.0014,"volume":427,"oi":4003,"iv":0.333536941609603,"delta":0.013219563259307898},{"contract":"90007452","cp":"C","strike":3.5,"expiry":"2026-12-23","dte":40,"bid":0.001,"ask":0.0014,"last":0.0012,"volume":483,"oi":6473,"iv":0.36239920294146977,"delta":0.011441916044502953},{"contract":"90007453","cp":"C","strike":3.6,"expiry":"2026-12-23","dte":40,"bid":0.0003,"ask":0.0012,"last":0.0009,"volume":225,"oi":4974,"iv":0.3720160807539378,"delta":0.007299978188461953},{"contract":"90007454","cp":"C","strike":3.7,"expiry":"2026-12-23","dte":40,"bid":0.0007,"ask":0.001,"last":0.0009,"volume":136,"oi":4275,"iv":0.40630866516176545,"delta":0.0075731275000315845},{"contract":"90007455","cp":"C","strike":3.8,"expiry":"2026-12-23","dte":40,"bid":0.0008,"ask":0.0009,"last":0.0009,"volume":52,"oi":3985,"iv":0.4341406370416053,"delta":0.00714691662566963},{"contract":"90007489","cp":"C","strike":3.9,"expiry":"2026-12-23","dte":40,"bid":0.0004,"ask":0.0009,"last":0.0009,"volume":2,"oi":3760,"iv":0.44772770322664635,"delta":0.005443991736898912},{"contract":"90007537","cp":"C","strike":4.0,"expiry":"2026-12-23","dte":40,"bid":0.0007,"ask":0.0009,"last":0.0007,"volume":53,"oi":8729,"iv":0.4837504377866224,"delta":0.006152425603011602},{"contract":"90007769","cp":"C","strike":4.1,"expiry":"2026-12-23","dte":40,"bid":0.0007,"ask":0.0009,"last":0.0008,"volume":931,"oi":25617,"iv":0.5087542495777648,"delta":0.005887942186881379},{"contract":"90008485","cp":"P","strike":2.35,"expiry":"2026-12-23","dte":40,"bid":0.0212,"ask":0.0218,"last":0.0219,"volume":366,"oi":2142,"iv":0.3417410826361744,"delta":-0.1354121401955729},{"contract":"90008486","cp":"P","strike":2.4,"expiry":"2026-12-23","dte":40,"bid":0.0291,"ask":0.0293,"last":0.0291,"volume":1752,"oi":2574,"iv":0.33483731099468017,"delta":-0.17576480082887302},{"contract":"90008356","cp":"P","strike":2.45,"expiry":"2026-12-23","dte":40,"bid":0.0389,"ask":0.0393,"last":0.0392,"volume":1616,"oi":1527,"iv":0.3281210261442862,"delta":-0.22403888030654362},{"contract":"90008340","cp":"P","strike":2.5,"expiry":"2026-12-23","dte":40,"bid":0.0523,"ask":0.053,"last":0.0526,"volume":1939,"oi":2873,"iv":0.3251579746119799,"delta":-0.28201518842669093},{"contract":"90008265","cp":"P","strike":2.55,"expiry":"2026-12-23","dte":40,"bid":0.0695,"ask":0.07,"last":0.07,"volume":2532,"oi":4063,"iv":0.3235249746298685,"delta":-0.34666592989770617},{"contract":"90008266","cp":"P","strike":2.6,"expiry":"2026-12-23","dte":40,"bid":0.0907,"ask":0.092,"last":0.0908,"volume":3279,"oi":4246,"iv":0.32508457734552454,"delta":-0.41584937418336454},{"contract":"90008228","cp":"P","strike":2.65,"expiry":"2026-12-23","dte":40,"bid":0.1167,"ask":0.1187,"last":0.1187,"volume":3233,"oi":4160,"iv":0.3300379638591532,"delta":-0.4853950200692754},{"contract":"90008188","cp":"P","strike":2.7,"expiry":"2026-12-23","dte":40,"bid":0.1469,"ask":0.1494,"last":0.1471,"volume":1801,"oi":2920,"iv":0.33689178483982807,"delta":-0.5515134037499669},{"contract":"90007942","cp":"P","strike":2.75,"expiry":"2026-12-23","dte":40,"bid":0.1762,"ask":0.1849,"last":0.1816,"volume":721,"oi":4472,"iv":0.3402839198096629,"delta":-0.614079012356324},{"contract":"90007833","cp":"P","strike":2.8,"expiry":"2026-12-23","dte":40,"bid":0.2199,"ask":0.2212,"last":0.2234,"volume":750,"oi":5414,"iv":0.35862505302155345,"delta":-0.663119984106012},{"contract":"90007834","cp":"P","strike":2.85,"expiry":"2026-12-23","dte":40,"bid":0.2612,"ask":0.2645,"last":0.2645,"volume":995,"oi":2530,"iv":0.37821138344609007,"delta":-0.703412689154541},{"contract":"90007640","cp":"P","strike":2.9,"expiry":"2026-12-23","dte":40,"bid":0.3051,"ask":0.3106,"last":0.3064,"volume":96,"oi":1864,"iv":0.4020879028523924,"delta":-0.7341806918970968},{"contract":"90007484","cp":"P","strike":2.95,"expiry":"2026-12-23","dte":40,"bid":0.3506,"ask":0.357,"last":0.3517,"volume":135,"oi":2231,"iv":0.4256919827017869,"delta":-0.7594485809179964},{"contract":"90007456","cp":"P","strike":3.0,"expiry":"2026-12-23","dte":40,"bid":0.3977,"ask":0.4042,"last":0.3805,"volume":127,"oi":3319,"iv":0.4508277518349233,"delta":-0.7792835310281632},{"contract":"90007457","cp":"P","strike":3.1,"expiry":"2026-12-23","dte":40,"bid":0.4937,"ask":0.5009,"last":0.4769,"volume":64,"oi":2776,"iv":0.5026909056913891,"delta":-0.8081540324074106},{"contract":"90007458","cp":"P","strike":3.2,"expiry":"2026-12-23","dte":40,"bid":0.5921,"ask":0.5996,"last":0.59,"volume":85,"oi":2316,"iv":0.5576447332962586,"delta":-0.8263799157695801},{"contract":"90007459","cp":"P","strike":3.3,"expiry":"2026-12-23","dte":40,"bid":0.6907,"ask":0.6989,"last":0.0,"volume":0,"oi":1298,"iv":0.6099734324380943,"delta":-0.8401631275004411},{"contract":"90007460","cp":"P","strike":3.4,"expiry":"2026-12-23","dte":40,"bid":0.79,"ask":0.7985,"last":0.7272,"volume":1,"oi":1116,"iv":0.6611103963515514,"delta":-0.8504316151709856},{"contract":"90007461","cp":"P","strike":3.5,"expiry":"2026-12-23","dte":40,"bid":0.8896,"ask":0.8985,"last":0.886,"volume":26,"oi":1208,"iv":0.7110704682205515,"delta":-0.8582573144122881},{"contract":"90007462","cp":"P","strike":3.6,"expiry":"2026-12-23","dte":40,"bid":0.9891,"ask":0.9984,"last":0.9812,"volume":21,"oi":1675,"iv":0.7580205300112604,"delta":-0.8650503868161397},{"contract":"90007463","cp":"P","strike":3.7,"expiry":"2026-12-23","dte":40,"bid":1.0878,"ask":1.0977,"last":1.0698,"volume":15,"oi":1327,"iv":0.7989097755114423,"delta":-0.8722800351413599},{"contract":"90007464","cp":"P","strike":3.8,"expiry":"2026-12-23","dte":40,"bid":1.187,"ask":1.1973,"last":0.0,"volume":0,"oi":817,"iv":0.8398031923496101,"delta":-0.8779047111442679},{"contract":"90007490","cp":"P","strike":3.9,"expiry":"2026-12-23","dte":40,"bid":1.2871,"ask":1.2977,"last":0.0,"volume":0,"oi":881,"iv":0.883706214161291,"delta":-0.881265829147651},{"contract":"90007538","cp":"P","strike":4.0,"expiry":"2026-12-23","dte":40,"bid":1.3867,"ask":1.3978,"last":1.3232,"volume":3,"oi":898,"iv":0.9237323238907915,"delta":-0.8849264866305282},{"contract":"90007770","cp":"P","strike":4.1,"expiry":"2026-12-23","dte":40,"bid":1.4863,"ask":1.4978,"last":1.4299,"volume":32,"oi":660,"iv":0.961970207761641,"delta":-0.8882766407666833}]},"510050":{"underlying_close":2.889,"contracts":[{"contract":"10012637","cp":"C","strike":2.65,"expiry":"2026-11-25","dte":12,"bid":0.2273,"ask":0.2312,"last":0.2301,"volume":3971,"oi":3112,"iv":0.0008,"delta":1.0},{"contract":"10012537","cp":"C","strike":2.7,"expiry":"2026-11-25","dte":12,"bid":0.1788,"ask":0.1822,"last":0.1768,"volume":616,"oi":2338,"iv":0.0008,"delta":0.9999},{"contract":"10012527","cp":"C","strike":2.75,"expiry":"2026-11-25","dte":12,"bid":0.1311,"ask":0.1324,"last":0.1322,"volume":2383,"oi":2964,"iv":0.0008,"delta":0.9968},{"contract":"10012437","cp":"C","strike":2.8,"expiry":"2026-11-25","dte":12,"bid":0.0847,"ask":0.0848,"last":0.0848,"volume":18942,"oi":13989,"iv":0.0008,"delta":0.9608},{"contract":"10012438","cp":"C","strike":2.85,"expiry":"2026-11-25","dte":12,"bid":0.0429,"ask":0.043,"last":0.043,"volume":59194,"oi":40611,"iv":0.0435,"delta":0.791},{"contract":"10012439","cp":"C","strike":2.9,"expiry":"2026-11-25","dte":12,"bid":0.016,"ask":0.0161,"last":0.0161,"volume":73849,"oi":86293,"iv":0.0931,"delta":0.4506},{"contract":"10012440","cp":"C","strike":2.95,"expiry":"2026-11-25","dte":12,"bid":0.0051,"ask":0.0052,"last":0.0052,"volume":34850,"oi":81121,"iv":0.1114,"delta":0.1486},{"contract":"10012441","cp":"C","strike":3.0,"expiry":"2026-11-25","dte":12,"bid":0.0014,"ask":0.0016,"last":0.0016,"volume":8870,"oi":57457,"iv":0.1262,"delta":0.0259},{"contract":"10012442","cp":"C","strike":3.1,"expiry":"2026-11-25","dte":12,"bid":0.0005,"ask":0.0006,"last":0.0006,"volume":2574,"oi":32282,"iv":0.1803,"delta":0.0001},{"contract":"10012443","cp":"C","strike":3.2,"expiry":"2026-11-25","dte":12,"bid":0.0003,"ask":0.0005,"last":0.0005,"volume":1834,"oi":17978,"iv":0.2427,"delta":0.0},{"contract":"10012444","cp":"C","strike":3.3,"expiry":"2026-11-25","dte":12,"bid":0.0002,"ask":0.0003,"last":0.0003,"volume":901,"oi":10998,"iv":0.2878,"delta":0.0},{"contract":"10012445","cp":"C","strike":3.4,"expiry":"2026-11-25","dte":12,"bid":0.0002,"ask":0.0003,"last":0.0003,"volume":289,"oi":16317,"iv":0.3435,"delta":0.0},{"contract":"10012638","cp":"P","strike":2.65,"expiry":"2026-11-25","dte":12,"bid":0.0003,"ask":0.0004,"last":0.0003,"volume":401,"oi":19997,"iv":0.2044,"delta":-0.0},{"contract":"10012538","cp":"P","strike":2.7,"expiry":"2026-11-25","dte":12,"bid":0.0006,"ask":0.0008,"last":0.0005,"volume":3662,"oi":17983,"iv":0.1769,"delta":-0.0001},{"contract":"10012528","cp":"P","strike":2.75,"expiry":"2026-11-25","dte":12,"bid":0.0018,"ask":0.0019,"last":0.0019,"volume":5654,"oi":33988,"iv":0.1713,"delta":-0.0032},{"contract":"10012446","cp":"P","strike":2.8,"expiry":"2026-11-25","dte":12,"bid":0.0045,"ask":0.0046,"last":0.0045,"volume":17551,"oi":39995,"iv":0.1514,"delta":-0.0392},{"contract":"10012447","cp":"P","strike":2.85,"expiry":"2026-11-25","dte":12,"bid":0.0145,"ask":0.0152,"last":0.0152,"volume":52758,"oi":59438,"iv":0.155,"delta":-0.209},{"contract":"10012448","cp":"P","strike":2.9,"expiry":"2026-11-25","dte":12,"bid":0.038,"ask":0.0392,"last":0.0392,"volume":59946,"oi":49135,"iv":0.1696,"delta":-0.5494},{"contract":"10012449","cp":"P","strike":2.95,"expiry":"2026-11-25","dte":12,"bid":0.0772,"ask":0.0774,"last":0.0772,"volume":21714,"oi":19383,"iv":0.2023,"delta":-0.8514},{"contract":"10012450","cp":"P","strike":3.0,"expiry":"2026-11-25","dte":12,"bid":0.122,"ask":0.124,"last":0.1223,"volume":6467,"oi":8513,"iv":0.2454,"delta":-0.9741},{"contract":"10012451","cp":"P","strike":3.1,"expiry":"2026-11-25","dte":12,"bid":0.22,"ask":0.2227,"last":0.2192,"volume":688,"oi":4496,"iv":0.34465444998387185,"delta":-0.8613122293712678},{"contract":"10012452","cp":"P","strike":3.2,"expiry":"2026-11-25","dte":12,"bid":0.3178,"ask":0.323,"last":0.3192,"volume":1015,"oi":2214,"iv":0.4382254576346598,"delta":-0.8922727122254265},{"contract":"10012453","cp":"P","strike":3.3,"expiry":"2026-11-25","dte":12,"bid":0.4171,"ask":0.4229,"last":0.4186,"volume":560,"oi":1601,"iv":0.5270397481727198,"delta":-0.9094251158547142},{"contract":"10012454","cp":"P","strike":3.4,"expiry":"2026-11-25","dte":12,"bid":0.5171,"ask":0.5233,"last":0.5188,"volume":235,"oi":2011,"iv":0.6162930968837153,"delta":-0.9185978294707198},{"contract":"10012639","cp":"C","strike":2.65,"expiry":"2026-12-23","dte":40,"bid":0.2155,"ask":0.219,"last":0.2187,"volume":451,"oi":3316,"iv":0.0008,"delta":0.9964},{"contract":"10011801","cp":"C","strike":2.7,"expiry":"2026-12-23","dte":40,"bid":0.1691,"ask":0.1721,"last":0.1721,"volume":230,"oi":5607,"iv":0.0008,"delta":0.9837},{"contract":"10011783","cp":"C","strike":2.75,"expiry":"2026-12-23","dte":40,"bid":0.1264,"ask":0.1286,"last":0.1276,"volume":654,"oi":6029,"iv":0.0008,"delta":0.9448},{"contract":"10011425","cp":"C","strike":2.8,"expiry":"2026-12-23","dte":40,"bid":0.0886,"ask":0.0887,"last":0.0887,"volume":6373,"oi":19382,"iv":0.0008,"delta":0.8569},{"contract":"10011426","cp":"C","strike":2.85,"expiry":"2026-12-23","dte":40,"bid":0.0573,"ask":0.0575,"last":0.0574,"volume":10231,"oi":19762,"iv":0.0611,"delta":0.7074},{"contract":"10011427","cp":"C","strike":2.9,"expiry":"2026-12-23","dte":40,"bid":0.0339,"ask":0.034,"last":0.0339,"volume":18885,"oi":30122,"iv":0.0866,"delta":0.5136},{"contract":"10011428","cp":"C","strike":2.95,"expiry":"2026-12-23","dte":40,"bid":0.0185,"ask":0.0187,"last":0.0185,"volume":10138,"oi":25217,"iv":0.0982,"delta":0.3196},{"contract":"10011429","cp":"C","strike":3.0,"expiry":"2026-12-23","dte":40,"bid":0.0098,"ask":0.01,"last":0.01,"volume":10068,"oi":54026,"iv":0.1083,"delta":0.1677},{"contract":"10011430","cp":"C","strike":3.1,"expiry":"2026-12-23","dte":40,"bid":0.0033,"ask":0.0035,"last":0.0034,"volume":3166,"oi":32128,"iv":0.1295,"delta":0.0269},{"contract":"10011431","cp":"C","strike":3.2,"expiry":"2026-12-23","dte":40,"bid":0.0021,"ask":0.0023,"last":0.0021,"volume":1818,"oi":32599,"iv":0.161,"delta":0.0021},{"contract":"10011432","cp":"C","strike":3.3,"expiry":"2026-12-23","dte":40,"bid":0.0015,"ask":0.0016,"last":0.0015,"volume":102,"oi":25237,"iv":0.1908,"delta":0.0001},{"contract":"10011433","cp":"C","strike":3.4,"expiry":"2026-12-23","dte":40,"bid":0.0012,"ask":0.0013,"last":0.0012,"volume":290,"oi":21549,"iv":0.2202,"delta":0.0},{"contract":"10011531","cp":"C","strike":3.5,"expiry":"2026-12-23","dte":40,"bid":0.001,"ask":0.0013,"last":0.0012,"volume":1599,"oi":42352,"iv":0.254,"delta":0.0},{"contract":"10012640","cp":"P","strike":2.65,"expiry":"2026-12-23","dte":40,"bid":0.0048,"ask":0.005,"last":0.0049,"volume":2008,"oi":14471,"iv":0.1828,"delta":-0.0036},{"contract":"10011802","cp":"P","strike":2.7,"expiry":"2026-12-23","dte":40,"bid":0.0082,"ask":0.0087,"last":0.0083,"volume":6782,"oi":41563,"iv":0.1752,"delta":-0.0163},{"contract":"10011784","cp":"P","strike":2.75,"expiry":"2026-12-23","dte":40,"bid":0.0146,"ask":0.0149,"last":0.0148,"volume":6073,"oi":37054,"iv":0.1718,"delta":-0.0552},{"contract":"10011434","cp":"P","strike":2.8,"expiry":"2026-12-23","dte":40,"bid":0.0255,"ask":0.0258,"last":0.0256,"volume":10871,"oi":62528,"iv":0.1704,"delta":-0.1431},{"contract":"10011435","cp":"P","strike":2.85,"expiry":"2026-12-23","dte":40,"bid":0.0435,"ask":0.0444,"last":0.044,"volume":8713,"oi":26875,"iv":0.1761,"delta":-0.2926},{"contract":"10011436","cp":"P","strike":2.9,"expiry":"2026-12-23","dte":40,"bid":0.0705,"ask":0.0711,"last":0.0711,"volume":12243,"oi":23341,"iv":0.1886,"delta":-0.4864},{"contract":"10011437","cp":"P","strike":2.95,"expiry":"2026-12-23","dte":40,"bid":0.1058,"ask":0.1059,"last":0.1059,"volume":4704,"oi":12326,"iv":0.2068,"delta":-0.6804},{"contract":"10011438","cp":"P","strike":3.0,"expiry":"2026-12-23","dte":40,"bid":0.1462,"ask":0.1468,"last":0.1457,"volume":1169,"oi":13424,"iv":0.2275,"delta":-0.8323},{"contract":"10011439","cp":"P","strike":3.1,"expiry":"2026-12-23","dte":40,"bid":0.2388,"ask":0.2424,"last":0.2438,"volume":1360,"oi":9427,"iv":0.3048,"delta":-0.9731},{"contract":"10011440","cp":"P","strike":3.2,"expiry":"2026-12-23","dte":40,"bid":0.337,"ask":0.3411,"last":0.34,"volume":459,"oi":7778,"iv":0.3641,"delta":-0.9979},{"contract":"10011441","cp":"P","strike":3.3,"expiry":"2026-12-23","dte":40,"bid":0.4373,"ask":0.4416,"last":0.4367,"volume":125,"oi":5227,"iv":0.4036220046214086,"delta":-0.8191863086188986},{"contract":"10011442","cp":"P","strike":3.4,"expiry":"2026-12-23","dte":40,"bid":0.5364,"ask":0.5411,"last":0.5399,"volume":13,"oi":2738,"iv":0.4580413066728196,"delta":-0.8373972678811584},{"contract":"10011532","cp":"P","strike":3.5,"expiry":"2026-12-23","dte":40,"bid":0.6343,"ask":0.6393,"last":0.6411,"volume":65,"oi":2847,"iv":0.5028106381172499,"delta":-0.8545636282167348}]},"510300":{"underlying_close":4.083,"contracts":[{"contract":"10012661","cp":"C","strike":3.7,"expiry":"2026-11-25","dte":12,"bid":0.3609,"ask":0.3654,"last":0.3688,"volume":687,"oi":788,"iv":0.0008,"delta":0.9999},{"contract":"10012621","cp":"C","strike":3.8,"expiry":"2026-11-25","dte":12,"bid":0.2688,"ask":0.27,"last":0.2689,"volume":2133,"oi":2532,"iv":0.0008,"delta":0.9976},{"contract":"10012589","cp":"C","strike":3.9,"expiry":"2026-11-25","dte":12,"bid":0.1688,"ask":0.1728,"last":0.1728,"volume":2446,"oi":3220,"iv":0.0008,"delta":0.9659},{"contract":"10012543","cp":"C","strike":4.0,"expiry":"2026-11-25","dte":12,"bid":0.086,"ask":0.0862,"last":0.086,"volume":36417,"oi":21287,"iv":0.0008,"delta":0.8028},{"contract":"10012529","cp":"C","strike":4.1,"expiry":"2026-11-25","dte":12,"bid":0.0308,"ask":0.0309,"last":0.0309,"volume":103016,"oi":63090,"iv":0.1231,"delta":0.4618},{"contract":"10012455","cp":"C","strike":4.2,"expiry":"2026-11-25","dte":12,"bid":0.0081,"ask":0.0082,"last":0.0082,"volume":71001,"oi":82343,"iv":0.1424,"delta":0.1536},{"contract":"10012456","cp":"C","strike":4.3,"expiry":"2026-11-25","dte":12,"bid":0.0021,"ask":0.0022,"last":0.0022,"volume":22799,"oi":75881,"iv":0.1628,"delta":0.0272},{"contract":"10012457","cp":"C","strike":4.4,"expiry":"2026-11-25","dte":12,"bid":0.0009,"ask":0.0011,"last":0.0009,"volume":5869,"oi":33641,"iv":0.1911,"delta":0.0025},{"contract":"10012458","cp":"C","strike":4.5,"expiry":"2026-11-25","dte":12,"bid":0.0005,"ask":0.0007,"last":0.0005,"volume":2721,"oi":18172,"iv":0.2224,"delta":0.0001},{"contract":"10012459","cp":"C","strike":4.6,"expiry":"2026-11-25","dte":12,"bid":0.0003,"ask":0.0006,"last":0.0006,"volume":1473,"oi":12812,"iv":0.2727,"delta":0.0},{"contract":"10012460","cp":"C","strike":4.7,"expiry":"2026-11-25","dte":12,"bid":0.0002,"ask":0.0003,"last":0.0003,"volume":545,"oi":6595,"iv":0.2917,"delta":0.0},{"contract":"10012461","cp":"C","strike":4.8,"expiry":"2026-11-25","dte":12,"bid":0.0001,"ask":0.0003,"last":0.0001,"volume":200,"oi":8878,"iv":0.295,"delta":0.0},{"contract":"10012462","cp":"C","strike":4.9,"expiry":"2026-11-25","dte":12,"bid":0.0002,"ask":0.0003,"last":0.0003,"volume":197,"oi":3444,"iv":0.3686,"delta":0.0},{"contract":"10012463","cp":"C","strike":5.0,"expiry":"2026-11-25","dte":12,"bid":0.0002,"ask":0.0003,"last":0.0003,"volume":433,"oi":5776,"iv":0.404,"delta":0.0},{"contract":"10012662","cp":"P","strike":3.7,"expiry":"2026-11-25","dte":12,"bid":0.0014,"ask":0.0016,"last":0.0013,"volume":3611,"oi":12935,"iv":0.2654,"delta":-0.0001},{"contract":"10012622","cp":"P","strike":3.8,"expiry":"2026-11-25","dte":12,"bid":0.0029,"ask":0.0031,"last":0.0029,"volume":4913,"oi":24723,"iv":0.2344,"delta":-0.0024},{"contract":"10012590","cp":"P","strike":3.9,"expiry":"2026-11-25","dte":12,"bid":0.0063,"ask":0.0065,"last":0.0063,"volume":13697,"oi":30213,"iv":0.1978,"delta":-0.0341},{"contract":"10012544","cp":"P","strike":4.0,"expiry":"2026-11-25","dte":12,"bid":0.0225,"ask":0.0227,"last":0.0225,"volume":40049,"oi":40406,"iv":0.1913,"delta":-0.1972},{"contract":"10012530","cp":"P","strike":4.1,"expiry":"2026-11-25","dte":12,"bid":0.0664,"ask":0.0665,"last":0.0665,"volume":96191,"oi":62454,"iv":0.2046,"delta":-0.5382},{"contract":"10012464","cp":"P","strike":4.2,"expiry":"2026-11-25","dte":12,"bid":0.144,"ask":0.1465,"last":0.1464,"volume":42068,"oi":39506,"iv":0.2618,"delta":-0.8464},{"contract":"10012465","cp":"P","strike":4.3,"expiry":"2026-11-25","dte":12,"bid":0.2387,"ask":0.2412,"last":0.2388,"volume":9721,"oi":19146,"iv":0.3281,"delta":-0.9728},{"contract":"10012466","cp":"P","strike":4.4,"expiry":"2026-11-25","dte":12,"bid":0.3366,"ask":0.34,"last":0.3323,"volume":3720,"oi":9269,"iv":0.3782,"delta":-0.9975},{"contract":"10012467","cp":"P","strike":4.5,"expiry":"2026-11-25","dte":12,"bid":0.4346,"ask":0.4398,"last":0.4309,"volume":2061,"oi":6505,"iv":0.46830638717386386,"delta":-0.8632493854873754},{"contract":"10012468","cp":"P","strike":4.6,"expiry":"2026-11-25","dte":12,"bid":0.5344,"ask":0.5393,"last":0.5364,"volume":1115,"oi":4400,"iv":0.5374882922960962,"delta":-0.8785717856969874},{"contract":"10012469","cp":"P","strike":4.7,"expiry":"2026-11-25","dte":12,"bid":0.6335,"ask":0.6391,"last":0.6305,"volume":646,"oi":1672,"iv":0.6010149153694,"delta":-0.8908147132335322},{"contract":"10012470","cp":"P","strike":4.8,"expiry":"2026-11-25","dte":12,"bid":0.7326,"ask":0.7397,"last":0.735,"volume":126,"oi":1251,"iv":0.6638840070904117,"delta":-0.8994368046183098},{"contract":"10012471","cp":"P","strike":4.9,"expiry":"2026-11-25","dte":12,"bid":0.831,"ask":0.8401,"last":0.8326,"volume":146,"oi":996,"iv":0.720214562230902,"delta":-0.9076538433570674},{"contract":"10012472","cp":"P","strike":5.0,"expiry":"2026-11-25","dte":12,"bid":0.9302,"ask":0.9418,"last":0.9334,"volume":65,"oi":1742,"iv":0.7825852358973184,"delta":-0.9118517436022627},{"contract":"10012663","cp":"C","strike":3.7,"expiry":"2026-12-23","dte":40,"bid":0.3506,"ask":0.3558,"last":0.3533,"volume":231,"oi":1505,"iv":0.0008,"delta":0.9856},{"contract":"10012623","cp":"C","strike":3.8,"expiry":"2026-12-23","dte":40,"bid":0.2614,"ask":0.2622,"last":0.2601,"volume":954,"oi":4802,"iv":0.0008,"delta":0.948},{"contract":"10012591","cp":"C","strike":3.9,"expiry":"2026-12-23","dte":40,"bid":0.1789,"ask":0.1826,"last":0.1807,"volume":2020,"oi":6135,"iv":0.0008,"delta":0.8599},{"contract":"10012545","cp":"C","strike":4.0,"expiry":"2026-12-23","dte":40,"bid":0.1155,"ask":0.1157,"last":0.1155,"volume":6853,"oi":8789,"iv":0.0939,"delta":0.7081},{"contract":"10012433","cp":"C","strike":4.1,"expiry":"2026-12-23","dte":40,"bid":0.0638,"ask":0.065,"last":0.0638,"volume":18319,"oi":31027,"iv":0.1175,"delta":0.5114},{"contract":"10012133","cp":"C","strike":4.2,"expiry":"2026-12-23","dte":40,"bid":0.0324,"ask":0.033,"last":0.0324,"volume":21223,"oi":36575,"iv":0.1303,"delta":0.3163},{"contract":"10011805","cp":"C","strike":4.3,"expiry":"2026-12-23","dte":40,"bid":0.0161,"ask":0.0162,"last":0.0161,"volume":18492,"oi":31949,"iv":0.142,"delta":0.1654},{"contract":"10011443","cp":"C","strike":4.4,"expiry":"2026-12-23","dte":40,"bid":0.008,"ask":0.0083,"last":0.0083,"volume":9526,"oi":24303,"iv":0.1542,"delta":0.0727},{"contract":"10011444","cp":"C","strike":4.5,"expiry":"2026-12-23","dte":40,"bid":0.0043,"ask":0.0044,"last":0.0044,"volume":2623,"oi":17528,"iv":0.166,"delta":0.0269},{"contract":"10011445","cp":"C","strike":4.6,"expiry":"2026-12-23","dte":40,"bid":0.0027,"ask":0.003,"last":0.0027,"volume":2567,"oi":20014,"iv":0.1806,"delta":0.0084},{"contract":"10011446","cp":"C","strike":4.7,"expiry":"2026-12-23","dte":40,"bid":0.0018,"ask":0.002,"last":0.0019,"volume":1107,"oi":15627,"iv":0.1971,"delta":0.0022},{"contract":"10011447","cp":"C","strike":4.8,"expiry":"2026-12-23","dte":40,"bid":0.0012,"ask":0.0015,"last":0.0014,"volume":851,"oi":16638,"iv":0.2134,"delta":0.0005},{"contract":"10011448","cp":"C","strike":4.9,"expiry":"2026-12-23","dte":40,"bid":0.0008,"ask":0.001,"last":0.001,"volume":565,"oi":19352,"iv":0.2267,"delta":0.0001},{"contract":"10011449","cp":"C","strike":5.0,"expiry":"2026-12-23","dte":40,"bid":0.0008,"ask":0.0009,"last":0.0009,"volume":222,"oi":17926,"iv":0.2458,"delta":0.0},{"contract":"10011450","cp":"C","strike":5.25,"expiry":"2026-12-23","dte":40,"bid":0.0009,"ask":0.001,"last":0.0011,"volume":629,"oi":12348,"iv":0.3048,"delta":0.0},{"contract":"10011451","cp":"C","strike":5.5,"expiry":"2026-12-23","dte":40,"bid":0.0008,"ask":0.001,"last":0.001,"volume":564,"oi":11627,"iv":0.3503,"delta":0.0},{"contract":"10011547","cp":"C","strike":5.75,"expiry":"2026-12-23","dte":40,"bid":0.0007,"ask":0.0008,"last":0.0007,"volume":690,"oi":22935,"iv":0.3816,"delta":0.0},{"contract":"10011591","cp":"C","strike":6.0,"expiry":"2026-12-23","dte":40,"bid":0.0006,"ask":0.0008,"last":0.0007,"volume":2057,"oi":29706,"iv":0.4241,"delta":0.0},{"contract":"10012664","cp":"P","strike":3.7,"expiry":"2026-12-23","dte":40,"bid":0.0108,"ask":0.0112,"last":0.0105,"volume":4591,"oi":11130,"iv":0.2222,"delta":-0.0144},{"contract":"10012624","cp":"P","strike":3.8,"expiry":"2026-12-23","dte":40,"bid":0.0201,"ask":0.0207,"last":0.02,"volume":6601,"oi":14311,"iv":0.2139,"delta":-0.052},{"contract":"10012592","cp":"P","strike":3.9,"expiry":"2026-12-23","dte":40,"bid":0.0377,"ask":0.0386,"last":0.0378,"volume":11065,"oi":19286,"iv":0.2094,"delta":-0.1401},{"contract":"10012546","cp":"P","strike":4.0,"expiry":"2026-12-23","dte":40,"bid":0.0702,"ask":0.0706,"last":0.0706,"volume":25535,"oi":31230,"iv":0.2138,"delta":-0.2919},{"contract":"10012434","cp":"P","strike":4.1,"expiry":"2026-12-23","dte":40,"bid":0.1217,"ask":0.123,"last":0.1217,"volume":13733,"oi":42610,"iv":0.2266,"delta":-0.4886},{"contract":"10012134","cp":"P","strike":4.2,"expiry":"2026-12-23","dte":40,"bid":0.1903,"ask":0.1924,"last":0.1904,"volume":9107,"oi":39115,"iv":0.2482,"delta":-0.6837},{"contract":"10011806","cp":"P","strike":4.3,"expiry":"2026-12-23","dte":40,"bid":0.2728,"ask":0.275,"last":0.2722,"volume":3210,"oi":19818,"iv":0.2774,"delta":-0.8346},{"contract":"10011452","cp":"P","strike":4.4,"expiry":"2026-12-23","dte":40,"bid":0.3636,"ask":0.3668,"last":0.3637,"volume":661,"oi":7868,"iv":0.3156,"delta":-0.9273},{"contract":"10011453","cp":"P","strike":4.5,"expiry":"2026-12-23","dte":40,"bid":0.4584,"ask":0.4639,"last":0.4611,"volume":335,"oi":6547,"iv":0.3607,"delta":-0.9731},{"contract":"10011454","cp":"P","strike":4.6,"expiry":"2026-12-23","dte":40,"bid":0.5561,"ask":0.5619,"last":0.5593,"volume":506,"oi":6558,"iv":0.4037,"delta":-0.9916},{"contract":"10011455","cp":"P","strike":4.7,"expiry":"2026-12-23","dte":40,"bid":0.655,"ask":0.6605,"last":0.6622,"volume":488,"oi":5854,"iv":0.456,"delta":-0.9978},{"contract":"10011456","cp":"P","strike":4.8,"expiry":"2026-12-23","dte":40,"bid":0.7578,"ask":0.7608,"last":0.7575,"volume":344,"oi":7545,"iv":0.4858,"delta":-0.9995},{"contract":"10011457","cp":"P","strike":4.9,"expiry":"2026-12-23","dte":40,"bid":0.8532,"ask":0.8606,"last":0.8493,"volume":19,"oi":6391,"iv":0.49647150417681485,"delta":-0.8447832303023557},{"contract":"10011458","cp":"P","strike":5.0,"expiry":"2026-12-23","dte":40,"bid":0.9522,"ask":0.96,"last":0.9415,"volume":22,"oi":4815,"iv":0.5307278964056008,"delta":-0.8537967213822546},{"contract":"10011459","cp":"P","strike":5.25,"expiry":"2026-12-23","dte":40,"bid":1.2013,"ask":1.2099,"last":1.2063,"volume":35,"oi":2122,"iv":0.6149960927929257,"delta":-0.8691232636279764},{"contract":"10011460","cp":"P","strike":5.5,"expiry":"2026-12-23","dte":40,"bid":1.4493,"ask":1.4587,"last":1.4034,"volume":1,"oi":1425,"iv":0.6880447306205502,"delta":-0.8818823242098746},{"contract":"10011548","cp":"P","strike":5.75,"expiry":"2026-12-23","dte":40,"bid":1.6983,"ask":1.7087,"last":1.6493,"volume":8,"oi":1499,"iv":0.7591590772025982,"delta":-0.8902641092644866},{"contract":"10011592","cp":"P","strike":6.0,"expiry":"2026-12-23","dte":40,"bid":1.9484,"ask":1.9595,"last":1.8989,"volume":3,"oi":1760,"iv":0.8293137483512856,"delta":-0.8955940888334986}]},"510500":{"underlying_close":6.495,"contracts":[{"contract":"10012803","cp":"C","strike":5.25,"expiry":"2026-11-25","dte":12,"bid":1.1938,"ask":1.2291,"last":1.2107,"volume":421,"oi":688,"iv":0.0008,"delta":1.0},{"contract":"10012669","cp":"C","strike":5.5,"expiry":"2026-11-25","dte":12,"bid":0.9482,"ask":0.9805,"last":0.9838,"volume":403,"oi":944,"iv":0.0008,"delta":0.9997},{"contract":"10012629","cp":"C","strike":5.75,"expiry":"2026-11-25","dte":12,"bid":0.7089,"ask":0.7099,"last":0.7213,"volume":1907,"oi":3227,"iv":0.0008,"delta":0.9942},{"contract":"10012597","cp":"C","strike":6.0,"expiry":"2026-11-25","dte":12,"bid":0.482,"ask":0.4864,"last":0.4864,"volume":3617,"oi":6801,"iv":0.0008,"delta":0.9516},{"contract":"10012561","cp":"C","strike":6.25,"expiry":"2026-11-25","dte":12,"bid":0.266,"ask":0.2667,"last":0.266,"volume":29451,"oi":18517,"iv":0.1869,"delta":0.7973},{"contract":"10012549","cp":"C","strike":6.5,"expiry":"2026-11-25","dte":12,"bid":0.1088,"ask":0.1089,"last":0.1089,"volume":173280,"oi":59211,"iv":0.2281,"delta":0.5142},{"contract":"10012473","cp":"C","strike":6.75,"expiry":"2026-11-25","dte":12,"bid":0.0334,"ask":0.0336,"last":0.0336,"volume":271947,"oi":94603,"iv":0.2466,"delta":0.2325},{"contract":"10012474","cp":"C","strike":7.0,"expiry":"2026-11-25","dte":12,"bid":0.0094,"ask":0.0098,"last":0.0094,"volume":120807,"oi":83553,"iv":0.2687,"delta":0.0709},{"contract":"10012475","cp":"C","strike":7.25,"expiry":"2026-11-25","dte":12,"bid":0.0033,"ask":0.0034,"last":0.0034,"volume":37663,"oi":60447,"iv":0.303,"delta":0.0146},{"contract":"10012476","cp":"C","strike":7.5,"expiry":"2026-11-25","dte":12,"bid":0.0016,"ask":0.0019,"last":0.0019,"volume":16204,"oi":41905,"iv":0.3501,"delta":0.0021},{"contract":"10012477","cp":"C","strike":7.75,"expiry":"2026-11-25","dte":12,"bid":0.001,"ask":0.0011,"last":0.001,"volume":1834,"oi":16323,"iv":0.3872,"delta":0.0002},{"contract":"10012478","cp":"C","strike":8.0,"expiry":"2026-11-25","dte":12,"bid":0.0009,"ask":0.0011,"last":0.001,"volume":2201,"oi":26735,"iv":0.448,"delta":0.0},{"contract":"10012479","cp":"C","strike":8.25,"expiry":"2026-11-25","dte":12,"bid":0.0001,"ask":0.0006,"last":0.0002,"volume":253,"oi":6393,"iv":0.4325,"delta":0.0},{"contract":"10012480","cp":"C","strike":8.5,"expiry":"2026-11-25","dte":12,"bid":0.0002,"ask":0.0003,"last":0.0003,"volume":315,"oi":4444,"iv":0.4996,"delta":0.0},{"contract":"10012481","cp":"C","strike":8.75,"expiry":"2026-11-25","dte":12,"bid":0.0001,"ask":0.0004,"last":0.0004,"volume":32,"oi":4569,"iv":0.5621,"delta":0.0},{"contract":"10012804","cp":"P","strike":5.25,"expiry":"2026-11-25","dte":12,"bid":0.0016,"ask":0.0018,"last":0.0018,"volume":3776,"oi":12136,"iv":0.5073,"delta":-0.0},{"contract":"10012670","cp":"P","strike":5.5,"expiry":"2026-11-25","dte":12,"bid":0.0034,"ask":0.0036,"last":0.0036,"volume":5747,"oi":15499,"iv":0.4505,"delta":-0.0003},{"contract":"10012630","cp":"P","strike":5.75,"expiry":"2026-11-25","dte":12,"bid":0.0096,"ask":0.0097,"last":0.0096,"volume":27379,"oi":62010,"iv":0.4134,"delta":-0.0058},{"contract":"10012598","cp":"P","strike":6.0,"expiry":"2026-11-25","dte":12,"bid":0.0185,"ask":0.0186,"last":0.0185,"volume":55305,"oi":42520,"iv":0.3465,"delta":-0.0484},{"contract":"10012562","cp":"P","strike":6.25,"expiry":"2026-11-25","dte":12,"bid":0.0514,"ask":0.0515,"last":0.0515,"volume":146719,"oi":76732,"iv":0.3129,"delta":-0.2027},{"contract":"10012550","cp":"P","strike":6.5,"expiry":"2026-11-25","dte":12,"bid":0.141,"ask":0.142,"last":0.142,"volume":269535,"oi":69923,"iv":0.3061,"delta":-0.4858},{"contract":"10012482","cp":"P","strike":6.75,"expiry":"2026-11-25","dte":12,"bid":0.3182,"ask":0.3197,"last":0.3197,"volume":160376,"oi":62584,"iv":0.3528,"delta":-0.7675},{"contract":"10012483","cp":"P","strike":7.0,"expiry":"2026-11-25","dte":12,"bid":0.535,"ask":0.5505,"last":0.535,"volume":32644,"oi":24061,"iv":0.3986,"delta":-0.9291},{"contract":"10012484","cp":"P","strike":7.25,"expiry":"2026-11-25","dte":12,"bid":0.7848,"ask":0.7999,"last":0.785,"volume":5944,"oi":12722,"iv":0.5184,"delta":-0.9854},{"contract":"10012485","cp":"P","strike":7.5,"expiry":"2026-11-25","dte":12,"bid":1.038,"ask":1.0523,"last":1.04,"volume":961,"oi":3167,"iv":0.569,"delta":-0.9979},{"contract":"10012486","cp":"P","strike":7.75,"expiry":"2026-11-25","dte":12,"bid":1.2758,"ask":1.3073,"last":1.288,"volume":219,"oi":2362,"iv":0.569,"delta":-0.9998},{"contract":"10012487","cp":"P","strike":8.0,"expiry":"2026-11-25","dte":12,"bid":1.5268,"ask":1.5576,"last":1.5321,"volume":316,"oi":1641,"iv":0.8351228267119857,"delta":-0.9025592603915257},{"contract":"10012488","cp":"P","strike":8.25,"expiry":"2026-11-25","dte":12,"bid":1.7701,"ask":1.8088,"last":1.7818,"volume":133,"oi":829,"iv":0.909770743580018,"delta":-0.9136333083832829},{"contract":"10012489","cp":"P","strike":8.5,"expiry":"2026-11-25","dte":12,"bid":2.0186,"ask":2.0586,"last":2.0314,"volume":34,"oi":707,"iv":0.9887764605452616,"delta":-0.9203288914960545},{"contract":"10012490","cp":"P","strike":8.75,"expiry":"2026-11-25","dte":12,"bid":2.2681,"ask":2.3095,"last":2.2754,"volume":33,"oi":1377,"iv":1.0696009904885404,"delta":-0.9245430827363971},{"contract":"10012805","cp":"C","strike":5.25,"expiry":"2026-12-23","dte":40,"bid":1.177,"ask":1.1912,"last":1.195,"volume":14,"oi":73,"iv":0.0008,"delta":0.9931},{"contract":"10012671","cp":"C","strike":5.5,"expiry":"2026-12-23","dte":40,"bid":0.9409,"ask":0.9539,"last":0.9435,"volume":64,"oi":664,"iv":0.0008,"delta":0.974},{"contract":"10012631","cp":"C","strike":5.75,"expiry":"2026-12-23","dte":40,"bid":0.72,"ask":0.7261,"last":0.7199,"volume":196,"oi":1168,"iv":0.0008,"delta":0.9263},{"contract":"10012599","cp":"C","strike":6.0,"expiry":"2026-12-23","dte":40,"bid":0.509,"ask":0.5163,"last":0.5155,"volume":1202,"oi":2270,"iv":0.0008,"delta":0.8353},{"contract":"10012281","cp":"C","strike":6.25,"expiry":"2026-12-23","dte":40,"bid":0.3279,"ask":0.335,"last":0.334,"volume":5908,"oi":12034,"iv":0.194,"delta":0.6989},{"contract":"10012147","cp":"C","strike":6.5,"expiry":"2026-12-23","dte":40,"bid":0.1935,"ask":0.1961,"last":0.1961,"volume":16129,"oi":21602,"iv":0.2151,"delta":0.5339},{"contract":"10012148","cp":"C","strike":6.75,"expiry":"2026-12-23","dte":40,"bid":0.1037,"ask":0.105,"last":0.105,"volume":42092,"oi":35240,"iv":0.2265,"delta":0.369},{"contract":"10011809","cp":"C","strike":6.876,"expiry":"2026-12-23","dte":40,"bid":0.0727,"ask":0.0748,"last":0.0742,"volume":3800,"oi":4611,"iv":0.2309,"delta":0.2945},{"contract":"10012119","cp":"C","strike":7.0,"expiry":"2026-12-23","dte":40,"bid":0.0521,"ask":0.0522,"last":0.0521,"volume":25850,"oi":23068,"iv":0.2353,"delta":0.2299},{"contract":"10011519","cp":"C","strike":7.122,"expiry":"2026-12-23","dte":40,"bid":0.0366,"ask":0.0371,"last":0.0366,"volume":4292,"oi":5641,"iv":0.2399,"delta":0.1759},{"contract":"10012089","cp":"C","strike":7.25,"expiry":"2026-12-23","dte":40,"bid":0.0255,"ask":0.0256,"last":0.0255,"volume":16788,"oi":19961,"iv":0.2459,"delta":0.1294},{"contract":"10011461","cp":"C","strike":7.367,"expiry":"2026-12-23","dte":40,"bid":0.0175,"ask":0.0184,"last":0.0181,"volume":1664,"oi":4503,"iv":0.2505,"delta":0.0955},{"contract":"10012090","cp":"C","strike":7.5,"expiry":"2026-12-23","dte":40,"bid":0.012,"ask":0.0123,"last":0.0122,"volume":12231,"oi":21428,"iv":0.2556,"delta":0.066},{"contract":"10011462","cp":"C","strike":7.613,"expiry":"2026-12-23","dte":40,"bid":0.0089,"ask":0.0091,"last":0.0091,"volume":3085,"oi":6438,"iv":0.2619,"delta":0.0472},{"contract":"10012091","cp":"C","strike":7.75,"expiry":"2026-12-23","dte":40,"bid":0.0067,"ask":0.0071,"last":0.007,"volume":6042,"oi":15169,"iv":0.2733,"delta":0.0307},{"contract":"10011463","cp":"C","strike":7.859,"expiry":"2026-12-23","dte":40,"bid":0.0049,"ask":0.0055,"last":0.0049,"volume":1018,"oi":3978,"iv":0.2753,"delta":0.0214},{"contract":"10012092","cp":"C","strike":8.0,"expiry":"2026-12-23","dte":40,"bid":0.0036,"ask":0.0043,"last":0.0036,"volume":2068,"oi":12336,"iv":0.2841,"delta":0.0131},{"contract":"10011464","cp":"C","strike":8.104,"expiry":"2026-12-23","dte":40,"bid":0.0029,"ask":0.0033,"last":0.003,"volume":268,"oi":3400,"iv":0.292,"delta":0.0089},{"contract":"10012093","cp":"C","strike":8.25,"expiry":"2026-12-23","dte":40,"bid":0.0025,"ask":0.0032,"last":0.003,"volume":1908,"oi":10793,"iv":0.3122,"delta":0.0051},{"contract":"10011465","cp":"C","strike":8.35,"expiry":"2026-12-23","dte":40,"bid":0.0017,"ask":0.0026,"last":0.0023,"volume":413,"oi":5377,"iv":0.3149,"delta":0.0035},{"contract":"10012094","cp":"C","strike":8.5,"expiry":"2026-12-23","dte":40,"bid":0.0015,"ask":0.0021,"last":0.0017,"volume":643,"oi":10142,"iv":0.3226,"delta":0.0019},{"contract":"10011466","cp":"C","strike":8.595,"expiry":"2026-12-23","dte":40,"bid":0.0017,"ask":0.002,"last":0.0018,"volume":286,"oi":7017,"iv":0.3366,"delta":0.0013},{"contract":"10012095","cp":"C","strike":8.75,"expiry":"2026-12-23","dte":40,"bid":0.0013,"ask":0.0017,"last":0.0014,"volume":435,"oi":6037,"iv":0.3456,"delta":0.0006},{"contract":"10011467","cp":"C","strike":8.841,"expiry":"2026-12-23","dte":40,"bid":0.0012,"ask":0.0016,"last":0.0013,"volume":506,"oi":4107,"iv":0.3536,"delta":0.0004},{"contract":"10012096","cp":"C","strike":9.0,"expiry":"2026-12-23","dte":40,"bid":0.0016,"ask":0.002,"last":0.0016,"volume":617,"oi":11652,"iv":0.3802,"delta":0.0002},{"contract":"10011468","cp":"C","strike":9.086,"expiry":"2026-12-23","dte":40,"bid":0.0011,"ask":0.0016,"last":0.0011,"volume":46,"oi":3216,"iv":0.3744,"delta":0.0001},{"contract":"10012097","cp":"C","strike":9.25,"expiry":"2026-12-23","dte":40,"bid":0.0008,"ask":0.0011,"last":0.0011,"volume":495,"oi":6616,"iv":0.3922,"delta":0.0001},{"contract":"10011469","cp":"C","strike":9.332,"expiry":"2026-12-23","dte":40,"bid":0.0012,"ask":0.0016,"last":0.0012,"volume":148,"oi":5626,"iv":0.4045,"delta":0.0},{"contract":"10011551","cp":"C","strike":9.578,"expiry":"2026-12-23","dte":40,"bid":0.001,"ask":0.0016,"last":0.0014,"volume":51,"oi":45780,"iv":0.437,"delta":0.0},{"contract":"10011599","cp":"C","strike":9.823,"expiry":"2026-12-23","dte":40,"bid":0.001,"ask":0.0014,"last":0.0013,"volume":344,"oi":63339,"iv":0.4588,"delta":0.0},{"contract":"10012001","cp":"C","strike":10.314,"expiry":"2026-12-23","dte":40,"bid":0.0001,"ask":0.0004,"last":0.0004,"volume":108,"oi":30064,"iv":0.4545,"delta":0.0},{"contract":"10012806","cp":"P","strike":5.25,"expiry":"2026-12-23","dte":40,"bid":0.0166,"ask":0.0172,"last":0.0172,"volume":4628,"oi":7726,"iv":0.4046,"delta":-0.0069},{"contract":"10012672","cp":"P","strike":5.5,"expiry":"2026-12-23","dte":40,"bid":0.0279,"ask":0.0286,"last":0.0286,"volume":7912,"oi":9150,"iv":0.3748,"delta":-0.026},{"contract":"10012632","cp":"P","strike":5.75,"expiry":"2026-12-23","dte":40,"bid":0.051,"ask":0.0515,"last":0.0514,"volume":12671,"oi":15522,"iv":0.3543,"delta":-0.0737},{"contract":"10012600","cp":"P","strike":6.0,"expiry":"2026-12-23","dte":40,"bid":0.0901,"ask":0.0903,"last":0.0901,"volume":19720,"oi":20106,"iv":0.3354,"delta":-0.1647},{"contract":"10012282","cp":"P","strike":6.25,"expiry":"2026-12-23","dte":40,"bid":0.1594,"ask":0.1619,"last":0.1594,"volume":26548,"oi":51470,"iv":0.3269,"delta":-0.3011},{"contract":"10012149","cp":"P","strike":6.5,"expiry":"2026-12-23","dte":40,"bid":0.2702,"ask":0.2713,"last":0.2703,"volume":30997,"oi":47991,"iv":0.3293,"delta":-0.4661},{"contract":"10012150","cp":"P","strike":6.75,"expiry":"2026-12-23","dte":40,"bid":0.42,"ask":0.4244,"last":0.4244,"volume":14988,"oi":26872,"iv":0.3419,"delta":-0.631},{"contract":"10011810","cp":"P","strike":6.876,"expiry":"2026-12-23","dte":40,"bid":0.5227,"ask":0.5332,"last":0.5258,"volume":1940,"oi":5199,"iv":0.3638,"delta":-0.7055},{"contract":"10012120","cp":"P","strike":7.0,"expiry":"2026-12-23","dte":40,"bid":0.6254,"ask":0.6353,"last":0.6257,"volume":5890,"oi":13247,"iv":0.3791,"delta":-0.7701},{"contract":"10011520","cp":"P","strike":7.122,"expiry":"2026-12-23","dte":40,"bid":0.7306,"ask":0.7423,"last":0.7415,"volume":527,"oi":2916,"iv":0.4127,"delta":-0.8241},{"contract":"10012098","cp":"P","strike":7.25,"expiry":"2026-12-23","dte":40,"bid":0.8472,"ask":0.8588,"last":0.8473,"volume":705,"oi":5606,"iv":0.422,"delta":-0.8706},{"contract":"10011470","cp":"P","strike":7.367,"expiry":"2026-12-23","dte":40,"bid":0.9556,"ask":0.9683,"last":0.9015,"volume":87,"oi":2772,"iv":0.3523,"delta":-0.9045},{"contract":"10012099","cp":"P","strike":7.5,"expiry":"2026-12-23","dte":40,"bid":1.0825,"ask":1.0958,"last":1.0825,"volume":407,"oi":3961,"iv":0.4716,"delta":-0.934},{"contract":"10011471","cp":"P","strike":7.613,"expiry":"2026-12-23","dte":40,"bid":1.1911,"ask":1.2048,"last":1.1553,"volume":49,"oi":3476,"iv":0.4302,"delta":-0.9528},{"contract":"10012100","cp":"P","strike":7.75,"expiry":"2026-12-23","dte":40,"bid":1.3243,"ask":1.3384,"last":1.3301,"volume":133,"oi":3786,"iv":0.5338,"delta":-0.9693},{"contract":"10011472","cp":"P","strike":7.859,"expiry":"2026-12-23","dte":40,"bid":1.4319,"ask":1.4463,"last":1.258,"volume":12,"oi":2282,"iv":0.0008,"delta":-0.9786},{"contract":"10012101","cp":"P","strike":8.0,"expiry":"2026-12-23","dte":40,"bid":1.5704,"ask":1.5854,"last":1.5745,"volume":274,"oi":2963,"iv":0.569,"delta":-0.9869},{"contract":"10011473","cp":"P","strike":8.104,"expiry":"2026-12-23","dte":40,"bid":1.6724,"ask":1.6877,"last":1.51,"volume":0,"oi":1826,"iv":0.0008,"delta":-0.9911},{"contract":"10012102","cp":"P","strike":8.25,"expiry":"2026-12-23","dte":40,"bid":1.8193,"ask":1.835,"last":1.755,"volume":7,"oi":1388,"iv":0.4812,"delta":-0.9949},{"contract":"10011474","cp":"P","strike":8.35,"expiry":"2026-12-23","dte":40,"bid":1.9182,"ask":1.9342,"last":1.883,"volume":1,"oi":1410,"iv":0.569,"delta":-0.9965},{"contract":"10012103","cp":"P","strike":8.5,"expiry":"2026-12-23","dte":40,"bid":2.0665,"ask":2.0831,"last":2.0388,"volume":18,"oi":340,"iv":0.569,"delta":-0.9981},{"contract":"10011475","cp":"P","strike":8.595,"expiry":"2026-12-23","dte":40,"bid":2.1621,"ask":2.179,"last":1.97,"volume":0,"oi":1724,"iv":0.0008,"delta":-0.9987},{"contract":"10012104","cp":"P","strike":8.75,"expiry":"2026-12-23","dte":40,"bid":2.316,"ask":2.3333,"last":2.3,"volume":3,"oi":446,"iv":0.569,"delta":-0.9994},{"contract":"10011476","cp":"P","strike":8.841,"expiry":"2026-12-23","dte":40,"bid":2.4061,"ask":2.4237,"last":2.21,"volume":0,"oi":694,"iv":0.0008,"delta":-0.9996},{"contract":"10012105","cp":"P","strike":9.0,"expiry":"2026-12-23","dte":40,"bid":2.5644,"ask":2.5827,"last":2.2947,"volume":0,"oi":658,"iv":0.0008,"delta":-0.9998},{"contract":"10011477","cp":"P","strike":9.086,"expiry":"2026-12-23","dte":40,"bid":2.6495,"ask":2.6681,"last":2.35,"volume":0,"oi":471,"iv":0.7716481283553369,"delta":-0.8805747308517997},{"contract":"10012106","cp":"P","strike":9.25,"expiry":"2026-12-23","dte":40,"bid":2.813,"ask":2.832,"last":2.591,"volume":0,"oi":762,"iv":0.8003337535694519,"delta":-0.8837298469740758},{"contract":"10011478","cp":"P","strike":9.332,"expiry":"2026-12-23","dte":40,"bid":2.8948,"ask":2.9141,"last":2.6157,"volume":0,"oi":1022,"iv":0.8146107867453902,"delta":-0.8851167093061199},{"contract":"10011552","cp":"P","strike":9.578,"expiry":"2026-12-23","dte":40,"bid":3.1402,"ask":3.1604,"last":2.9793,"volume":0,"oi":1604,"iv":0.8563186221742864,"delta":-0.8889157436842763},{"contract":"10011600","cp":"P","strike":9.823,"expiry":"2026-12-23","dte":40,"bid":3.3844,"ask":3.4054,"last":3.223,"volume":0,"oi":3604,"iv":0.8956658298756206,"delta":-0.8924380036748496},{"contract":"10012002","cp":"P","strike":10.314,"expiry":"2026-12-23","dte":40,"bid":3.8715,"ask":3.8942,"last":3.5988,"volume":0,"oi":1675,"iv":0.9643230541413639,"delta":-0.9001161244350502}]},"588000":{"underlying_close":1.354,"contracts":[{"contract":"10012829","cp":"C","strike":1.0,"expiry":"2026-11-25","dte":12,"bid":0.3475,"ask":0.3565,"last":0.348,"volume":114,"oi":773,"iv":0.0009,"delta":0.9999},{"contract":"10012811","cp":"C","strike":1.05,"expiry":"2026-11-25","dte":12,"bid":0.2995,"ask":0.3064,"last":0.299,"volume":76,"oi":913,"iv":0.0009,"delta":0.9995},{"contract":"10012679","cp":"C","strike":1.1,"expiry":"2026-11-25","dte":12,"bid":0.249,"ask":0.2574,"last":0.2525,"volume":503,"oi":1854,"iv":0.0009,"delta":0.9963},{"contract":"10012680","cp":"C","strike":1.15,"expiry":"2026-11-25","dte":12,"bid":0.2011,"ask":0.2088,"last":0.2042,"volume":783,"oi":3159,"iv":0.0009,"delta":0.983},{"contract":"10012645","cp":"C","strike":1.2,"expiry":"2026-11-25","dte":12,"bid":0.1583,"ask":0.1588,"last":0.1583,"volume":9106,"oi":12162,"iv":0.4381,"delta":0.9432},{"contract":"10012605","cp":"C","strike":1.25,"expiry":"2026-11-25","dte":12,"bid":0.1146,"ask":0.1149,"last":0.1146,"volume":29407,"oi":26122,"iv":0.4508,"delta":0.8568},{"contract":"10012577","cp":"C","strike":1.3,"expiry":"2026-11-25","dte":12,"bid":0.0759,"ask":0.076,"last":0.076,"volume":96021,"oi":42206,"iv":0.4428,"delta":0.7158},{"contract":"10012565","cp":"C","strike":1.35,"expiry":"2026-11-25","dte":12,"bid":0.0451,"ask":0.0455,"last":0.0451,"volume":229230,"oi":93360,"iv":0.4313,"delta":0.5373},{"contract":"10012555","cp":"C","strike":1.4,"expiry":"2026-11-25","dte":12,"bid":0.0251,"ask":0.0252,"last":0.0251,"volume":314942,"oi":157536,"iv":0.439,"delta":0.3572},{"contract":"10012551","cp":"C","strike":1.45,"expiry":"2026-11-25","dte":12,"bid":0.013,"ask":0.0131,"last":0.013,"volume":202563,"oi":109109,"iv":0.4475,"delta":0.2091},{"contract":"10012531","cp":"C","strike":1.5,"expiry":"2026-11-25","dte":12,"bid":0.006,"ask":0.0061,"last":0.006,"volume":151817,"oi":115957,"iv":0.4497,"delta":0.1079},{"contract":"10012491","cp":"C","strike":1.55,"expiry":"2026-11-25","dte":12,"bid":0.0031,"ask":0.0032,"last":0.0031,"volume":75115,"oi":80346,"iv":0.4709,"delta":0.0493},{"contract":"10012492","cp":"C","strike":1.6,"expiry":"2026-11-25","dte":12,"bid":0.0016,"ask":0.0017,"last":0.0016,"volume":39184,"oi":69816,"iv":0.4912,"delta":0.02},{"contract":"10012493","cp":"C","strike":1.65,"expiry":"2026-11-25","dte":12,"bid":0.001,"ask":0.0011,"last":0.0011,"volume":25379,"oi":38269,"iv":0.5313,"delta":0.0073},{"contract":"10012494","cp":"C","strike":1.7,"expiry":"2026-11-25","dte":12,"bid":0.0007,"ask":0.0008,"last":0.0007,"volume":9262,"oi":39203,"iv":0.5617,"delta":0.0024},{"contract":"10012495","cp":"C","strike":1.75,"expiry":"2026-11-25","dte":12,"bid":0.0003,"ask":0.0005,"last":0.0005,"volume":1814,"oi":21713,"iv":0.5954,"delta":0.0007},{"contract":"10012496","cp":"C","strike":1.8,"expiry":"2026-11-25","dte":12,"bid":0.0002,"ask":0.0003,"last":0.0003,"volume":413,"oi":21024,"iv":0.6148,"delta":0.0002},{"contract":"10012497","cp":"C","strike":1.85,"expiry":"2026-11-25","dte":12,"bid":0.0002,"ask":0.0003,"last":0.0003,"volume":66,"oi":11697,"iv":0.663,"delta":0.0001},{"contract":"10012498","cp":"C","strike":1.9,"expiry":"2026-11-25","dte":12,"bid":0.0002,"ask":0.0003,"last":0.0002,"volume":150,"oi":11359,"iv":0.6637,"delta":0.0},{"contract":"10012499","cp":"C","strike":1.95,"expiry":"2026-11-25","dte":12,"bid":0.0001,"ask":0.0002,"last":0.0001,"volume":1048,"oi":33655,"iv":0.6637,"delta":0.0},{"contract":"10012830","cp":"P","strike":1.0,"expiry":"2026-11-25","dte":12,"bid":0.0005,"ask":0.0006,"last":0.0006,"volume":6472,"oi":31065,"iv":0.6637,"delta":-0.0001},{"contract":"10012812","cp":"P","strike":1.05,"expiry":"2026-11-25","dte":12,"bid":0.0008,"ask":0.0009,"last":0.0008,"volume":4385,"oi":26331,"iv":0.6563,"delta":-0.0005},{"contract":"10012681","cp":"P","strike":1.1,"expiry":"2026-11-25","dte":12,"bid":0.0017,"ask":0.0018,"last":0.0018,"volume":20449,"oi":52697,"iv":0.6274,"delta":-0.0037},{"contract":"10012682","cp":"P","strike":1.15,"expiry":"2026-11-25","dte":12,"bid":0.0034,"ask":0.0035,"last":0.0035,"volume":25593,"oi":43398,"iv":0.5872,"delta":-0.017},{"contract":"10012646","cp":"P","strike":1.2,"expiry":"2026-11-25","dte":12,"bid":0.0065,"ask":0.0066,"last":0.0066,"volume":81523,"oi":64291,"iv":0.5458,"delta":-0.0568},{"contract":"10012606","cp":"P","strike":1.25,"expiry":"2026-11-25","dte":12,"bid":0.0135,"ask":0.0137,"last":0.0135,"volume":109342,"oi":74470,"iv":0.5248,"delta":-0.1432},{"contract":"10012578","cp":"P","strike":1.3,"expiry":"2026-11-25","dte":12,"bid":0.0238,"ask":0.0239,"last":0.0238,"volume":175202,"oi":93169,"iv":0.4842,"delta":-0.2842},{"contract":"10012566","cp":"P","strike":1.35,"expiry":"2026-11-25","dte":12,"bid":0.0443,"ask":0.0444,"last":0.0444,"volume":286699,"oi":90671,"iv":0.4834,"delta":-0.4627},{"contract":"10012556","cp":"P","strike":1.4,"expiry":"2026-11-25","dte":12,"bid":0.0732,"ask":0.0743,"last":0.0732,"volume":249713,"oi":72205,"iv":0.4817,"delta":-0.6428},{"contract":"10012552","cp":"P","strike":1.45,"expiry":"2026-11-25","dte":12,"bid":0.1127,"ask":0.113,"last":0.1127,"volume":84078,"oi":35607,"iv":0.522,"delta":-0.7909},{"contract":"10012532","cp":"P","strike":1.5,"expiry":"2026-11-25","dte":12,"bid":0.1556,"ask":0.1557,"last":0.1556,"volume":29852,"oi":23653,"iv":0.5507,"delta":-0.8921},{"contract":"10012500","cp":"P","strike":1.55,"expiry":"2026-11-25","dte":12,"bid":0.1974,"ask":0.2,"last":0.2,"volume":10636,"oi":14601,"iv":0.5512,"delta":-0.9507},{"contract":"10012501","cp":"P","strike":1.6,"expiry":"2026-11-25","dte":12,"bid":0.25,"ask":0.2542,"last":0.2545,"volume":1478,"oi":5902,"iv":0.6637,"delta":-0.98},{"contract":"10012502","cp":"P","strike":1.65,"expiry":"2026-11-25","dte":12,"bid":0.2945,"ask":0.3033,"last":0.3001,"volume":1002,"oi":4496,"iv":0.6637,"delta":-0.9927},{"contract":"10012503","cp":"P","strike":1.7,"expiry":"2026-11-25","dte":12,"bid":0.3489,"ask":0.3534,"last":0.3493,"volume":508,"oi":2872,"iv":0.6637,"delta":-0.9976},{"contract":"10012504","cp":"P","strike":1.75,"expiry":"2026-11-25","dte":12,"bid":0.3941,"ask":0.402,"last":0.4033,"volume":101,"oi":2327,"iv":0.6637,"delta":-0.9993},{"contract":"10012505","cp":"P","strike":1.8,"expiry":"2026-11-25","dte":12,"bid":0.4438,"ask":0.4536,"last":0.4519,"volume":155,"oi":1278,"iv":0.6637,"delta":-0.9998},{"contract":"10012506","cp":"P","strike":1.85,"expiry":"2026-11-25","dte":12,"bid":0.4936,"ask":0.5036,"last":0.4989,"volume":50,"oi":398,"iv":0.9507017851728139,"delta":-0.9573431550703505},{"contract":"10012507","cp":"P","strike":1.9,"expiry":"2026-11-25","dte":12,"bid":0.5436,"ask":0.546,"last":0.556,"volume":525,"oi":1091,"iv":0.6038678289973842,"delta":-0.9987910343961419},{"contract":"10012508","cp":"P","strike":1.95,"expiry":"2026-11-25","dte":12,"bid":0.5933,"ask":0.6038,"last":0.6012,"volume":225,"oi":1126,"iv":1.0771423232245843,"delta":-0.9613555419472397},{"contract":"10012831","cp":"C","strike":1.0,"expiry":"2026-12-23","dte":40,"bid":0.3454,"ask":0.3546,"last":0.3498,"volume":213,"oi":1259,"iv":0.0009,"delta":0.9861},{"contract":"10012813","cp":"C","strike":1.05,"expiry":"2026-12-23","dte":40,"bid":0.2986,"ask":0.3074,"last":0.2963,"volume":149,"oi":557,"iv":0.0009,"delta":0.9687},{"contract":"10012683","cp":"C","strike":1.1,"expiry":"2026-12-23","dte":40,"bid":0.2551,"ask":0.2608,"last":0.2512,"volume":868,"oi":2100,"iv":0.0009,"delta":0.9383},{"contract":"10012684","cp":"C","strike":1.15,"expiry":"2026-12-23","dte":40,"bid":0.2138,"ask":0.215,"last":0.2109,"volume":733,"oi":1709,"iv":0.288,"delta":0.8912},{"contract":"10012647","cp":"C","strike":1.2,"expiry":"2026-12-23","dte":40,"bid":0.1745,"ask":0.1776,"last":0.1703,"volume":1742,"oi":6145,"iv":0.3557,"delta":0.8259},{"contract":"10012607","cp":"C","strike":1.25,"expiry":"2026-12-23","dte":40,"bid":0.1402,"ask":0.1404,"last":0.1364,"volume":5244,"oi":15063,"iv":0.3975,"delta":0.744},{"contract":"10011515","cp":"C","strike":1.3,"expiry":"2026-12-23","dte":40,"bid":0.1055,"ask":0.106,"last":0.1055,"volume":10888,"oi":27243,"iv":0.4107,"delta":0.6496},{"contract":"10011479","cp":"C","strike":1.35,"expiry":"2026-12-23","dte":40,"bid":0.0788,"ask":0.0789,"last":0.0789,"volume":32982,"oi":36232,"iv":0.4148,"delta":0.549},{"contract":"10011480","cp":"C","strike":1.4,"expiry":"2026-12-23","dte":40,"bid":0.0567,"ask":0.0576,"last":0.0567,"volume":50454,"oi":50593,"iv":0.4135,"delta":0.4488},{"contract":"10011481","cp":"C","strike":1.45,"expiry":"2026-12-23","dte":40,"bid":0.0407,"ask":0.0408,"last":0.0407,"volume":36882,"oi":43580,"iv":0.4195,"delta":0.3551},{"contract":"10011482","cp":"C","strike":1.5,"expiry":"2026-12-23","dte":40,"bid":0.0282,"ask":0.0283,"last":0.0282,"volume":35744,"oi":43920,"iv":0.4215,"delta":0.2722},{"contract":"10011483","cp":"C","strike":1.55,"expiry":"2026-12-23","dte":40,"bid":0.0196,"ask":0.0198,"last":0.0198,"volume":20259,"oi":31592,"iv":0.4289,"delta":0.2024},{"contract":"10011484","cp":"C","strike":1.6,"expiry":"2026-12-23","dte":40,"bid":0.0137,"ask":0.0142,"last":0.0139,"volume":15643,"oi":43388,"iv":0.4372,"delta":0.1462},{"contract":"10011485","cp":"C","strike":1.65,"expiry":"2026-12-23","dte":40,"bid":0.0091,"ask":0.0092,"last":0.0091,"volume":19596,"oi":40803,"iv":0.4373,"delta":0.1028},{"contract":"10011486","cp":"C","strike":1.7,"expiry":"2026-12-23","dte":40,"bid":0.0073,"ask":0.0075,"last":0.0073,"volume":14619,"oi":34452,"iv":0.4601,"delta":0.0705},{"contract":"10011487","cp":"C","strike":1.75,"expiry":"2026-12-23","dte":40,"bid":0.0053,"ask":0.0058,"last":0.0058,"volume":6410,"oi":25261,"iv":0.4794,"delta":0.0472},{"contract":"10011523","cp":"C","strike":1.8,"expiry":"2026-12-23","dte":40,"bid":0.0042,"ask":0.0045,"last":0.0044,"volume":5814,"oi":22973,"iv":0.4922,"delta":0.0309},{"contract":"10011535","cp":"C","strike":1.85,"expiry":"2026-12-23","dte":40,"bid":0.0036,"ask":0.0039,"last":0.0037,"volume":3659,"oi":17729,"iv":0.5131,"delta":0.0198},{"contract":"10011565","cp":"C","strike":1.9,"expiry":"2026-12-23","dte":40,"bid":0.0022,"ask":0.0031,"last":0.003,"volume":2629,"oi":14874,"iv":0.5285,"delta":0.0125},{"contract":"10011566","cp":"C","strike":1.95,"expiry":"2026-12-23","dte":40,"bid":0.0024,"ask":0.0025,"last":0.0024,"volume":1868,"oi":10923,"iv":0.5418,"delta":0.0077},{"contract":"10011607","cp":"C","strike":2.0,"expiry":"2026-12-23","dte":40,"bid":0.0019,"ask":0.002,"last":0.0019,"volume":2432,"oi":16956,"iv":0.5529,"delta":0.0047},{"contract":"10011623","cp":"C","strike":2.05,"expiry":"2026-12-23","dte":40,"bid":0.0013,"ask":0.0017,"last":0.0017,"volume":640,"oi":10133,"iv":0.5729,"delta":0.0028},{"contract":"10011645","cp":"C","strike":2.1,"expiry":"2026-12-23","dte":40,"bid":0.0013,"ask":0.0017,"last":0.0016,"volume":514,"oi":14055,"iv":0.5954,"delta":0.0017},{"contract":"10011646","cp":"C","strike":2.15,"expiry":"2026-12-23","dte":40,"bid":0.001,"ask":0.0014,"last":0.0013,"volume":363,"oi":16657,"iv":0.6052,"delta":0.001},{"contract":"10011663","cp":"C","strike":2.2,"expiry":"2026-12-23","dte":40,"bid":0.001,"ask":0.0013,"last":0.0012,"volume":177,"oi":19755,"iv":0.6243,"delta":0.0006},{"contract":"10011829","cp":"C","strike":2.25,"expiry":"2026-12-23","dte":40,"bid":0.0008,"ask":0.0009,"last":0.001,"volume":172,"oi":11820,"iv":0.6351,"delta":0.0003},{"contract":"10011843","cp":"C","strike":2.3,"expiry":"2026-12-23","dte":40,"bid":0.0007,"ask":0.0008,"last":0.0008,"volume":113,"oi":12939,"iv":0.6412,"delta":0.0002},{"contract":"10011955","cp":"C","strike":2.35,"expiry":"2026-12-23","dte":40,"bid":0.0008,"ask":0.0009,"last":0.0009,"volume":275,"oi":12046,"iv":0.6637,"delta":0.0001},{"contract":"10011956","cp":"C","strike":2.4,"expiry":"2026-12-23","dte":40,"bid":0.0005,"ask":0.0009,"last":0.0007,"volume":634,"oi":17033,"iv":0.6637,"delta":0.0001},{"contract":"10011977","cp":"C","strike":2.45,"expiry":"2026-12-23","dte":40,"bid":0.0006,"ask":0.0007,"last":0.0007,"volume":158,"oi":23562,"iv":0.6637,"delta":0.0},{"contract":"10012015","cp":"C","strike":2.5,"expiry":"2026-12-23","dte":40,"bid":0.0006,"ask":0.0007,"last":0.0006,"volume":262,"oi":71814,"iv":0.6637,"delta":0.0},{"contract":"10012016","cp":"C","strike":2.55,"expiry":"2026-12-23","dte":40,"bid":0.0006,"ask":0.0007,"last":0.0006,"volume":1647,"oi":125553,"iv":0.6637,"delta":0.0},{"contract":"10012832","cp":"P","strike":1.0,"expiry":"2026-12-23","dte":40,"bid":0.007,"ask":0.0076,"last":0.0076,"volume":12708,"oi":18495,"iv":0.632,"delta":-0.0139},{"contract":"10012814","cp":"P","strike":1.05,"expiry":"2026-12-23","dte":40,"bid":0.0099,"ask":0.0105,"last":0.0101,"volume":9309,"oi":13556,"iv":0.5913,"delta":-0.0313},{"contract":"10012685","cp":"P","strike":1.1,"expiry":"2026-12-23","dte":40,"bid":0.0151,"ask":0.0152,"last":0.0152,"volume":12152,"oi":21793,"iv":0.5725,"delta":-0.0617},{"contract":"10012686","cp":"P","strike":1.15,"expiry":"2026-12-23","dte":40,"bid":0.0213,"ask":0.0219,"last":0.0217,"volume":15894,"oi":18842,"iv":0.5486,"delta":-0.1088},{"contract":"10012648","cp":"P","strike":1.2,"expiry":"2026-12-23","dte":40,"bid":0.0301,"ask":0.0304,"last":0.0304,"volume":20525,"oi":47508,"iv":0.5245,"delta":-0.1741},{"contract":"10012608","cp":"P","strike":1.25,"expiry":"2026-12-23","dte":40,"bid":0.0426,"ask":0.0443,"last":0.0426,"volume":28643,"oi":39748,"iv":0.5053,"delta":-0.256},{"contract":"10011516","cp":"P","strike":1.3,"expiry":"2026-12-23","dte":40,"bid":0.0617,"ask":0.0618,"last":0.0617,"volume":46228,"oi":90424,"iv":0.5059,"delta":-0.3504},{"contract":"10011488","cp":"P","strike":1.35,"expiry":"2026-12-23","dte":40,"bid":0.084,"ask":0.0844,"last":0.0844,"volume":42086,"oi":80997,"iv":0.5016,"delta":-0.451},{"contract":"10011489","cp":"P","strike":1.4,"expiry":"2026-12-23","dte":40,"bid":0.1115,"ask":0.1125,"last":0.1125,"volume":36877,"oi":38119,"iv":0.5031,"delta":-0.5512},{"contract":"10011490","cp":"P","strike":1.45,"expiry":"2026-12-23","dte":40,"bid":0.1459,"ask":0.1482,"last":0.146,"volume":8709,"oi":13941,"iv":0.5122,"delta":-0.6449},{"contract":"10011491","cp":"P","strike":1.5,"expiry":"2026-12-23","dte":40,"bid":0.1804,"ask":0.1839,"last":0.1847,"volume":3290,"oi":11442,"iv":0.5323,"delta":-0.7278},{"contract":"10011492","cp":"P","strike":1.55,"expiry":"2026-12-23","dte":40,"bid":0.222,"ask":0.2272,"last":0.2304,"volume":3078,"oi":8719,"iv":0.5824,"delta":-0.7976},{"contract":"10011493","cp":"P","strike":1.6,"expiry":"2026-12-23","dte":40,"bid":0.2654,"ask":0.2701,"last":0.2749,"volume":1319,"oi":10497,"iv":0.6148,"delta":-0.8538},{"contract":"10011494","cp":"P","strike":1.65,"expiry":"2026-12-23","dte":40,"bid":0.311,"ask":0.3197,"last":0.3189,"volume":860,"oi":6924,"iv":0.6339,"delta":-0.8972},{"contract":"10011495","cp":"P","strike":1.7,"expiry":"2026-12-23","dte":40,"bid":0.3589,"ask":0.36,"last":0.3667,"volume":2083,"oi":12843,"iv":0.6637,"delta":-0.9295},{"contract":"10011496","cp":"P","strike":1.75,"expiry":"2026-12-23","dte":40,"bid":0.4059,"ask":0.41,"last":0.414,"volume":70,"oi":6388,"iv":0.6637,"delta":-0.9528},{"contract":"10011524","cp":"P","strike":1.8,"expiry":"2026-12-23","dte":40,"bid":0.4544,"ask":0.4641,"last":0.4647,"volume":79,"oi":5236,"iv":0.6637,"delta":-0.9691},{"contract":"10011536","cp":"P","strike":1.85,"expiry":"2026-12-23","dte":40,"bid":0.5029,"ask":0.5132,"last":0.5149,"volume":168,"oi":4392,"iv":0.6637,"delta":-0.9802},{"contract":"10011567","cp":"P","strike":1.9,"expiry":"2026-12-23","dte":40,"bid":0.5518,"ask":0.5623,"last":0.5634,"volume":207,"oi":4928,"iv":0.6637,"delta":-0.9875},{"contract":"10011568","cp":"P","strike":1.95,"expiry":"2026-12-23","dte":40,"bid":0.6012,"ask":0.612,"last":0.6066,"volume":37,"oi":995,"iv":0.6637,"delta":-0.9923},{"contract":"10011608","cp":"P","strike":2.0,"expiry":"2026-12-23","dte":40,"bid":0.6503,"ask":0.6614,"last":0.6529,"volume":21,"oi":1671,"iv":0.6637,"delta":-0.9953},{"contract":"10011624","cp":"P","strike":2.05,"expiry":"2026-12-23","dte":40,"bid":0.6996,"ask":0.7109,"last":0.6725,"volume":0,"oi":867,"iv":0.0009,"delta":-0.9972},{"contract":"10011647","cp":"P","strike":2.1,"expiry":"2026-12-23","dte":40,"bid":0.7494,"ask":0.7609,"last":0.7198,"volume":3,"oi":1841,"iv":0.0009,"delta":-0.9983},{"contract":"10011648","cp":"P","strike":2.15,"expiry":"2026-12-23","dte":40,"bid":0.7992,"ask":0.8112,"last":0.7508,"volume":1,"oi":2965,"iv":0.0009,"delta":-0.999},{"contract":"10011664","cp":"P","strike":2.2,"expiry":"2026-12-23","dte":40,"bid":0.8485,"ask":0.8607,"last":0.8299,"volume":2,"oi":2958,"iv":0.0009,"delta":-0.9994},{"contract":"10011830","cp":"P","strike":2.25,"expiry":"2026-12-23","dte":40,"bid":0.8981,"ask":0.9106,"last":0.8796,"volume":1,"oi":1040,"iv":0.0009,"delta":-0.9997},{"contract":"10011844","cp":"P","strike":2.3,"expiry":"2026-12-23","dte":40,"bid":0.9475,"ask":0.9602,"last":0.9293,"volume":2,"oi":1306,"iv":0.0009,"delta":-0.9998},{"contract":"10011957","cp":"P","strike":2.35,"expiry":"2026-12-23","dte":40,"bid":0.9974,"ask":1.0104,"last":0.9645,"volume":11,"oi":880,"iv":1.0207332907409028,"delta":-0.9273360360145786},{"contract":"10011958","cp":"P","strike":2.4,"expiry":"2026-12-23","dte":40,"bid":1.0468,"ask":1.0601,"last":0.9709,"volume":0,"oi":609,"iv":1.043996674668854,"delta":-0.9301737869840357},{"contract":"10011978","cp":"P","strike":2.45,"expiry":"2026-12-23","dte":40,"bid":1.0969,"ask":1.1104,"last":1.0705,"volume":4,"oi":1202,"iv":1.0771781724928382,"delta":-0.9303756033986851},{"contract":"10012017","cp":"P","strike":2.5,"expiry":"2026-12-23","dte":40,"bid":1.1469,"ask":1.1606,"last":1.1151,"volume":9,"oi":2242,"iv":1.1079977683768822,"delta":-0.9308943181363556},{"contract":"10012018","cp":"P","strike":2.55,"expiry":"2026-12-23","dte":40,"bid":1.1973,"ask":1.2113,"last":1.2081,"volume":103,"oi":8698,"iv":1.1456732815072033,"delta":-0.9297159829031777}]}}};
+
+</script>
+<script>
+'use strict';
+/* 静态网页版模拟交易（tastytrade 风格，A股 ETF 期权，虚拟资金 100 万）
+ * 数据：优先 COS 上的 sim-chains.json（实时链，5 分钟推送循环产出），
+ * 404/过期/拉取失败时静默回落到内置 2026-11-13 收盘链，不报错、不卡住。
+ * 账户状态只存本浏览器（localStorage），换设备不同步、清缓存即丢。
+ * 全部交易口径见内联的 simCore（与小程序版同一份纯函数）。
+ */
+var ETF_META = [
+  { code: '510050', name: '上证50ETF' },
+  { code: '510300', name: '沪深300ETF' },
+  { code: '510500', name: '中证500ETF' },
+  { code: '159915', name: '创业板ETF' },
+  { code: '588000', name: '科创50ETF' },
+  { code: '159901', name: '深证100ETF' },
+  { code: '159922', name: '中证500ETF深' },
+  { code: '159919', name: '沪深300ETF深' }
+];
+var STORE_KEY = 'sim_account_v1';
+var SIM_CHAIN_URL = 'https://volatility-dashboard-1505178048.cos.ap-guangzhou.myqcloud.com/sim-chains.json';
+var VOL_DATA_URL = 'https://volatility-dashboard-1505178048.cos.ap-guangzhou.myqcloud.com/vol-data.json';
+
+var state = {
+  etfCode: '510300', expiry: '', tab: 'trade',
+  ticketLegs: [], ticketQty: 1, acct: null,
+  chainData: null, chainSource: 'close', asOf: null,
+  iv30Map: {}, moveRange: null
+};
+
+function $(id) { return document.getElementById(id); }
+function todayStr() {
+  var d = new Date();
+  var m = '' + (d.getMonth() + 1), day = '' + d.getDate();
+  return d.getFullYear() + '-' + (m.length < 2 ? '0' + m : m) + '-' + (day.length < 2 ? '0' + day : day);
+}
+function numOrNull(v) {
+  if (v === null || v === undefined || v === '') return null;
+  var n = +v;
+  return isNaN(n) ? null : n;
+}
+function fmtMoney(v) {
+  if (v === null || v === undefined || isNaN(v)) return '--';
+  var neg = v < 0;
+  var s = Math.abs(v).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return (neg ? '-¥' : '¥') + s;
+}
+function fmtPrice(v) {
+  if (v === null || v === undefined || isNaN(v)) return '--';
+  return (+v).toFixed(4).replace(/0+$/, '').replace(/\.$/, '.0');
+}
+function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+
+// ---- 实时链解析（容错：字段缺失/三种形态，与小程序版同口径）----
+function normalizeContract(c) {
+  if (!c || c.contract === null || c.contract === undefined || c.strike === null || c.strike === undefined) return null;
+  var cp = c.cp;
+  cp = (cp === 'C' || cp === 'c' || cp === 'call') ? 'C' : 'P';
+  return {
+    contract: String(c.contract),
+    underlying: c.underlying ? String(c.underlying) : null,
+    cp: cp,
+    strike: +c.strike,
+    expiry: c.expiry ? String(c.expiry).slice(0, 10) : null,
+    dte: numOrNull(c.dte),
+    bid: numOrNull(c.bid), ask: numOrNull(c.ask), last: numOrNull(c.last),
+    volume: numOrNull(c.volume),
+    oi: numOrNull(c.oi !== null && c.oi !== undefined ? c.oi : c.open_interest),
+    iv: numOrNull(c.iv), delta: numOrNull(c.delta)
+  };
+}
+function daysBetween(d1, d2) {
+  return Math.round((new Date(d2 + 'T00:00:00') - new Date(d1 + 'T00:00:00')) / 86400000);
+}
+function normalizeLive(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  var date = raw.date || raw.quote_date || null;
+  var spots = raw.spots || null;
+  var out = { date: date, asOf: raw.asOf || null, etfs: {} };
+  var etfs = raw.etfs || null;
+  if (etfs) {
+    Object.keys(etfs).forEach(function (code) {
+      var e = etfs[code] || {};
+      var list = e.contracts || e.list || [];
+      var contracts = [];
+      for (var i = 0; i < list.length; i++) {
+        var nc = normalizeContract(list[i]);
+        if (nc) contracts.push(nc);
+      }
+      var close = numOrNull(e.underlying_close);
+      if (close === null && spots) close = numOrNull(spots[code]);
+      out.etfs[code] = { underlying_close: close, contracts: contracts };
+    });
+  } else if (Array.isArray(raw.contracts)) {
+    for (var j = 0; j < raw.contracts.length; j++) {
+      var nc2 = normalizeContract(raw.contracts[j]);
+      if (!nc2 || !nc2.underlying) continue;
+      var slot = out.etfs[nc2.underlying];
+      if (!slot) {
+        slot = { underlying_close: spots ? numOrNull(spots[nc2.underlying]) : null, contracts: [] };
+        out.etfs[nc2.underlying] = slot;
+      }
+      slot.contracts.push(nc2);
+    }
+  }
+  var codes = Object.keys(out.etfs), n = 0;
+  codes.forEach(function (k) { n += out.etfs[k].contracts.length; });
+  if (!codes.length || n < 50) return null;
+  if (date) {
+    codes.forEach(function (k) {
+      out.etfs[k].contracts.forEach(function (c) {
+        if ((c.dte === null || c.dte === undefined) && c.expiry) c.dte = daysBetween(date, c.expiry);
+      });
+    });
+  }
+  return out;
+}
+
+// ---- 数据加载：实时优先，失败/过期静默回落内置收盘链 ----
+function loadChain(isRefresh) {
+  var done = false;
+  function finishBuiltIn() {
+    if (done) return; done = true;
+    applyChainData(CLOSE_CHAIN, 'close', null);
+  }
+  var ctrl = null, timer = null;
+  try {
+    ctrl = new AbortController();
+    timer = setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, 5000);
+    fetch(SIM_CHAIN_URL, { signal: ctrl.signal }).then(function (res) {
+      if (!res.ok) throw new Error('http ' + res.status);
+      return res.json();
+    }).then(function (raw) {
+      clearTimeout(timer);
+      if (done) return;
+      var norm = normalizeLive(raw);
+      if (norm && norm.date === todayStr()) {
+        done = true;
+        applyChainData(norm, 'live', norm.asOf);
+      } else {
+        finishBuiltIn();
+      }
+    }).catch(function () { clearTimeout(timer); finishBuiltIn(); });
+    setTimeout(function () { if (!done) finishBuiltIn(); }, 6500);
+  } catch (e) { finishBuiltIn(); }
+  // IV30 兜底（best-effort，失败静默）：供 1σ 区间在链上无 ATM IV 时使用
+  try {
+    fetch(VOL_DATA_URL).then(function (r) { return r.json(); }).then(function (d) {
+      var m = {};
+      if (d && d.etfs) {
+        Object.keys(d.etfs).forEach(function (k) {
+          if (d.etfs[k] && d.etfs[k].iv30) m[k] = d.etfs[k].iv30 / 100;
+        });
+      }
+      state.iv30Map = m;
+      if (state.chainData) updateMoveRange();
+    }).catch(function () {});
+  } catch (e) {}
+}
+
+function applyChainData(data, source, asOf) {
+  var code = state.etfCode;
+  if (!data.etfs[code]) code = '510300';
+  var etf = data.etfs[code];
+  var expiries = [], seen = {};
+  etf.contracts.forEach(function (c) {
+    if (c.expiry && !seen[c.expiry]) { seen[c.expiry] = 1; expiries.push(c.expiry); }
+  });
+  expiries.sort();
+  var expiry = state.expiry;
+  if (!expiry || expiries.indexOf(expiry) < 0) expiry = expiries[0] || '';
+  var label = source === 'live'
+    ? '实时链 · ' + (asOf ? String(asOf).slice(11, 19) : '刚刚')
+    : '收盘链 · ' + (data.date || '2026-11-13');
+  var note = source === 'live'
+    ? '实时行情（5 分钟更新）· 数据截至 ' + (asOf || '')
+    : '周末/盘前显示最近收盘链（' + (data.date || '2026-11-13') + '），开盘后自动切实时链';
+  var pill = $('statusLabel');
+  pill.textContent = label;
+  pill.className = 'pill' + (source === 'live' ? ' live' : '');
+  $('dataNote').textContent = note;
+  state.chainData = data;
+  state.chainSource = source;
+  state.asOf = asOf;
+  state.etfCode = code;
+  state.expiry = expiry;
+  renderEtfChips();
+  renderExpiryChips(expiries);
+  buildRows();
+  refreshAccount();
+}
+
+// ---- 渲染：标的 / 到期日 ----
+function renderEtfChips() {
+  var html = '';
+  ETF_META.forEach(function (m) {
+    html += '<div class="chip' + (m.code === state.etfCode ? ' on' : '') + '" data-code="' + m.code + '">' + m.name + ' ' + m.code + '</div>';
+  });
+  $('etfChips').innerHTML = html;
+}
+function renderExpiryChips(expiries) {
+  var html = '';
+  expiries.forEach(function (ex) {
+    html += '<div class="chip' + (ex === state.expiry ? ' on' : '') + '" data-expiry="' + ex + '">' + ex + ' 到期</div>';
+  });
+  $('expiryChips').innerHTML = html;
+}
+
+function currentEtf() {
+  if (!state.chainData) return null;
+  return state.chainData.etfs[state.etfCode];
+}
+function spotOf() {
+  var e = currentEtf();
+  return e ? e.underlying_close : null;
+}
+
+function buildRows() {
+  var data = state.chainData;
+  if (!data) return;
+  var etf = currentEtf();
+  if (!etf) return;
+  var expiry = state.expiry;
+  var byStrike = {};
+  etf.contracts.forEach(function (c) {
+    if (c.expiry !== expiry) return;
+    var row = byStrike[c.strike];
+    if (!row) row = byStrike[c.strike] = { strike: c.strike, call: null, put: null };
+    if (c.cp === 'C') row.call = c; else row.put = c;
+  });
+  var rows = Object.keys(byStrike).map(function (k) { return byStrike[k]; });
+  rows.sort(function (a, b) { return a.strike - b.strike; });
+  var S = etf.underlying_close;
+  var mr = state.moveRange;
+  var html = '';
+  rows.forEach(function (r) {
+    var atm = Math.abs(r.strike - S) < 0.06;
+    var inSigma = mr && r.strike >= mr.low && r.strike <= mr.high;
+    html += '<tr class="' + (atm ? 'atm ' : '') + (inSigma ? 'insigma' : '') + '">';
+    html += cellHtml(r.call, 'bid') + cellHtml(r.call, 'ask');
+    html += '<td class="strike">' + (+r.strike).toFixed(2) + '</td>';
+    html += cellHtml(r.put, 'bid') + cellHtml(r.put, 'ask');
+    html += '</tr>';
+  });
+  $('chainBody').innerHTML = html || '<tr><td colspan="5" class="empty">该到期月暂无合约</td></tr>';
+  updateMoveRange();
+  updateTicket();
+}
+
+function cellHtml(c, side) {
+  if (!c) return '<td class="px no">--</td>';
+  var v = side === 'bid' ? c.bid : c.ask;
+  if (!validQuote(c)) return '<td class="px no">' + (v ? fmtPrice(v) : '--') + '</td>';
+  var sel = state.ticketLegs.some(function (l) { return l.contract === c.contract && l.side === side; });
+  return '<td class="px ' + side + (sel ? ' sel' : '') + '" data-contract="' + c.contract + '" data-side="' + side + '">' + fmtPrice(v) + '</td>';
+}
+
+// ---- 1σ 预期波动区间 ----
+function updateMoveRange() {
+  var data = state.chainData;
+  var S = spotOf();
+  var card = $('moveCard');
+  if (!data || !S || !state.expiry) { card.style.display = 'none'; state.moveRange = null; return; }
+  var etf = currentEtf();
+  if (!etf) { card.style.display = 'none'; state.moveRange = null; return; }
+  var exp = state.expiry;
+  var atm = findATM(etf.contracts, 'C', S, exp) || findATM(etf.contracts, 'P', S, exp);
+  var iv = null, dte = null;
+  if (atm) {
+    dte = atm.dte;
+    if (atm.iv && atm.iv > 0) iv = atm.iv;
+    else {
+      var mid = midOf(atm);
+      if (mid !== null && dte) iv = impliedVol(atm.cp, mid, S, atm.strike, dte / 365);
+    }
+  }
+  if ((iv === null || iv === undefined) && state.iv30Map) iv = state.iv30Map[state.etfCode] || null;
+  if (!iv || iv <= 0 || !dte || dte <= 0) { card.style.display = 'none'; state.moveRange = null; return; }
+  var em = expectedMove(S, iv, dte);
+  if (!em) { card.style.display = 'none'; state.moveRange = null; return; }
+  var em2 = { low: S - 2 * em.half, high: S + 2 * em.half };
+  state.moveRange = { low: em.low, high: em.high, half: em.half, low2: em2.low, high2: em2.high, iv: iv, dte: dte };
+  card.style.display = '';
+  $('mrMeta').textContent = 'IV ' + (iv * 100).toFixed(1) + '% · DTE ' + dte + ' 天';
+  $('mr1s').textContent = em.low.toFixed(3) + ' – ' + em.high.toFixed(3) + '（±' + (em.half / S * 100).toFixed(1) + '%）';
+  $('mr2s').textContent = em2.low.toFixed(3) + ' – ' + em2.high.toFixed(3);
+  $('mrSpot').textContent = S.toFixed(3);
+  // 区间带：以 S±30% 为画布
+  var lo = S * 0.7, hi = S * 1.3;
+  function pct(x) { return Math.max(0, Math.min(100, (x - lo) / (hi - lo) * 100)); }
+  var band = $('mrBand');
+  var legMarks = state.ticketLegs.map(function (l) {
+    return '<div class="leg" style="left:' + pct(l.strike) + '%"></div>';
+  }).join('');
+  band.innerHTML = '<div class="b2" style="left:' + pct(em2.low) + '%;width:' + (pct(em2.high) - pct(em2.low)) + '%"></div>'
+    + '<div class="b1" style="left:' + pct(em.low) + '%;width:' + (pct(em.high) - pct(em.low)) + '%"></div>'
+    + '<div class="spot" style="left:' + pct(S) + '%"></div>' + legMarks;
+  if (state.ticketLegs.length) updateTicket();
+}
+
+// POP 用 sigma：优先空头腿的 IV（链上 IV 或 mid 反推），其次平值 IV / IV30
+function ticketSigma(legs, S) {
+  for (var i = 0; i < legs.length; i++) {
+    if (legs[i].side !== 'sell') continue;
+    var l = legs[i];
+    if (l.iv && l.iv > 0) return l.iv;
+    var mid = midOf(l);
+    var T = l.dte ? l.dte / 365 : 0;
+    if (mid !== null && T > 0) {
+      var iv = impliedVol(l.cp, mid, S, l.strike, T);
+      if (iv) return iv;
+    }
+  }
+  if (state.moveRange && state.moveRange.iv) return state.moveRange.iv;
+  return null;
+}
+
+// ---- 下单：点买价=按买价卖出，点卖价=按卖价买入 ----
+function onCellTap(contract, side) {
+  var etf = currentEtf();
+  if (!etf) return;
+  var c = null;
+  for (var i = 0; i < etf.contracts.length; i++) {
+    if (etf.contracts[i].contract === contract) { c = etf.contracts[i]; break; }
+  }
+  if (!c || !validQuote(c)) { alert('该合约无有效报价'); return; }
+  if (c.dte !== null && c.dte < 7) { alert('距到期不足 7 天，不可新开'); return; }
+  var legs = state.ticketLegs.slice();
+  var idx = -1;
+  for (var j = 0; j < legs.length; j++) {
+    if (legs[j].contract === c.contract && legs[j].side === side) { idx = j; break; }
+  }
+  if (idx >= 0) { legs.splice(idx, 1); }
+  else {
+    if (legs.length >= 4) { alert('订单最多 4 条腿'); return; }
+    legs.push({ contract: c.contract, cp: c.cp, strike: c.strike, expiry: c.expiry,
+      side: side, bid: c.bid, ask: c.ask, last: c.last, dte: c.dte, iv: c.iv });
+  }
+  state.ticketLegs = legs;
+  buildRows();
+}
+
+// ---- 6 个策略模板一键组单 ----
+function onTemplate(name) {
+  var etf = currentEtf();
+  var S = spotOf();
+  var exp = state.expiry;
+  if (!etf || !S || !exp) return;
+  var contracts = etf.contracts;
+  var legs = [];
+  function legOf(c, side) {
+    if (!c) return null;
+    return { contract: c.contract, cp: c.cp, strike: c.strike, expiry: c.expiry,
+      side: side, bid: c.bid, ask: c.ask, last: c.last, dte: c.dte, iv: c.iv };
+  }
+  if (name === 'sellPut') {
+    var p = findByDelta(contracts, 'P', 0.20, exp);
+    if (p) legs.push(legOf(p, 'sell'));
+  } else if (name === 'buyCall') {
+    var c = findATM(contracts, 'C', S, exp);
+    if (c) legs.push(legOf(c, 'buy'));
+  } else if (name === 'bullPut') {
+    var p1 = findByDelta(contracts, 'P', 0.20, exp);
+    if (p1) legs.push(legOf(p1, 'sell'));
+    var p2 = p1 ? findWing(contracts, 'P', 0.10, exp, p1.strike) : null;
+    if (p2) legs.push(legOf(p2, 'buy'));
+  } else if (name === 'bearCall') {
+    var c1 = findByDelta(contracts, 'C', 0.20, exp);
+    if (c1) legs.push(legOf(c1, 'sell'));
+    var c2 = c1 ? findWing(contracts, 'C', 0.10, exp, c1.strike) : null;
+    if (c2) legs.push(legOf(c2, 'buy'));
+  } else if (name === 'strangle') {
+    var sp = findByDelta(contracts, 'P', 0.20, exp);
+    var sc = findByDelta(contracts, 'C', 0.20, exp);
+    if (sp) legs.push(legOf(sp, 'sell'));
+    if (sc) legs.push(legOf(sc, 'sell'));
+  } else if (name === 'condor') {
+    var cp1 = findByDelta(contracts, 'P', 0.20, exp);
+    var cc1 = findByDelta(contracts, 'C', 0.20, exp);
+    if (cp1) legs.push(legOf(cp1, 'sell'));
+    if (cc1) legs.push(legOf(cc1, 'sell'));
+    var cp2 = cp1 ? findWing(contracts, 'P', 0.10, exp, cp1.strike) : null;
+    var cc2 = cc1 ? findWing(contracts, 'C', 0.10, exp, cc1.strike) : null;
+    if (cp2) legs.push(legOf(cp2, 'buy'));
+    if (cc2) legs.push(legOf(cc2, 'buy'));
+  }
+  if (!legs.length) { alert('当前到期月找不到合适的合约'); return; }
+  state.ticketLegs = legs;
+  buildRows();
+}
+
+function legsText(legs) {
+  return legs.map(function (l) {
+    return (l.side === 'sell' ? '卖' : '买') + (l.cp === 'C' ? '购' : '沽') + ' ' + (+l.strike).toFixed(2);
+  }).join(' + ');
+}
+
+function updateTicket() {
+  var legs = state.ticketLegs;
+  var box = $('ticketLegs');
+  var calcBox = $('ticketCalc');
+  var canvas = $('payoffCanvas');
+  if (!legs.length || !spotOf()) {
+    box.innerHTML = '<div class="empty">尚未组单</div>';
+    calcBox.style.display = 'none';
+    canvas.style.display = 'none';
+    $('ticketHint').textContent = '点期权链报价或选策略模板组单';
+    return;
+  }
+  var html = '';
+  legs.forEach(function (l, i) {
+    html += '<div class="leg-row"><span>' + (l.side === 'sell' ? '卖' : '买') + (l.cp === 'C' ? '认购' : '认沽') + ' ' + (+l.strike).toFixed(2) + ' · ' + l.expiry + ' · ' + (l.side === 'sell' ? '成交价 ' + fmtPrice(l.bid) : '成交价 ' + fmtPrice(l.ask)) + '</span><span class="x" data-leg="' + i + '">✕</span></div>';
+  });
+  box.innerHTML = html;
+  $('qtyVal').textContent = state.ticketQty;
+  var qty = state.ticketQty;
+  var pf = premiumFlowForLegs(legs, qty);
+  if (pf === null) { calcBox.style.display = 'none'; canvas.style.display = 'none'; return; }
+  var fees = feesForLegs(legs, qty);
+  var S = spotOf();
+  var margin = positionMargin(legs, qty, S, pf);
+  var ex = payoffExtremes(legs, qty, S, pf);
+  var curve = payoffCurve(legs, qty, S, pf);
+  var bes = breakevens(legs, qty, S, pf);
+  var popTxt = '--';
+  var sigma = ticketSigma(legs, S);
+  var maxDte = 0;
+  legs.forEach(function (l) { if (l.dte && l.dte > maxDte) maxDte = l.dte; });
+  var T = maxDte / 365;
+  if (sigma && T > 0) {
+    var pop = popForLegs(legs, qty, S, pf, sigma, T);
+    if (pop !== null && pop !== undefined) popTxt = (pop * 100).toFixed(1) + '%';
+  }
+  $('calcPremium').textContent = fmtMoney(pf);
+  $('calcPremium').className = 'v ' + (pf >= 0 ? 'pos' : 'neg');
+  $('calcFees').textContent = fmtMoney(fees);
+  $('calcMargin').textContent = fmtMoney(margin);
+  $('calcMaxP').textContent = fmtMoney(ex.maxProfit);
+  $('calcMaxL').textContent = fmtMoney(ex.maxLoss);
+  $('calcPop').textContent = popTxt + (popTxt === '--' ? '' : '（BS 估算）');
+  $('calcBE').textContent = bes.length ? bes.map(function (b) { return b.toFixed(3); }).join(' / ') : '无';
+  var mr = state.moveRange;
+  $('calcBEIn').textContent = bes.length
+    ? bes.map(function (b) { return (mr && b >= mr.low && b <= mr.high) ? '在 1σ 内' : '在 1σ 外'; }).join(' / ')
+    : '--';
+  calcBox.style.display = '';
+  canvas.style.display = '';
+  $('ticketHint').textContent = '保证金不足时无法下单 · 平仓/到期结算在持仓页';
+  drawPayoff(curve, S, mr);
+}
+
+function submitOrder() {
+  var legs = state.ticketLegs;
+  if (!legs.length) { alert('请先选合约组单'); return; }
+  var qty = state.ticketQty;
+  var pf = premiumFlowForLegs(legs, qty);
+  if (pf === null) { alert('某腿无有效报价，无法下单'); return; }
+  var margin = positionMargin(legs, qty, spotOf(), pf);
+  var acct = state.acct;
+  var used = marginUsed(acct, spotMap());
+  var avail = acct.cash - used;
+  if (margin > avail) {
+    alert('保证金不足：本单需保证金 ' + fmtMoney(margin) + '，可用资金 ' + fmtMoney(avail) + '，请减张数或换价差结构。');
+    return;
+  }
+  var pos = openPosition(legs, qty, spotOf(), state.etfCode, acct.seq);
+  if (pos.error) { alert('下单失败：' + pos.error); return; }
+  acct.seq += 1;
+  acct.cash += pos.premiumFlow - pos.fees;
+  acct.realized -= pos.fees;
+  acct.positions.push(pos);
+  acct.trades.unshift({
+    time: todayStr(), kind: '开仓', text: legsText(pos.legs) + ' ×' + pos.qty + '张',
+    amount: pos.premiumFlow - pos.fees, amountTxt: fmtMoney(pos.premiumFlow - pos.fees)
+  });
+  state.ticketLegs = [];
+  saveAcct();
+  buildRows();
+  refreshAccount();
+  alert('下单成功');
+}
+
+// ---- 账户 / 持仓 / 成交 ----
+function saveAcct() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(state.acct)); } catch (e) {}
+}
+function loadAcct() {
+  var acct = null;
+  try { acct = JSON.parse(localStorage.getItem(STORE_KEY)); } catch (e) { acct = null; }
+  if (!acct || typeof acct.cash !== 'number' || !Array.isArray(acct.positions)) acct = newAccount();
+  if (!Array.isArray(acct.trades)) acct.trades = [];
+  state.acct = acct;
+}
+function spotMap() {
+  var m = {};
+  var data = state.chainData;
+  if (data) {
+    Object.keys(data.etfs).forEach(function (k) { m[k] = data.etfs[k].underlying_close; });
+  }
+  return m;
+}
+function quoteMap() {
+  var m = {};
+  var data = state.chainData;
+  if (data) {
+    Object.keys(data.etfs).forEach(function (k) {
+      data.etfs[k].contracts.forEach(function (c) { m[c.contract] = c; });
+    });
+  }
+  return m;
+}
+
+function refreshAccount() {
+  var acct = state.acct;
+  if (!acct) return;
+  var qm = quoteMap();
+  var sm = spotMap();
+  var used = marginUsed(acct, sm);
+  var floating = 0;
+  acct.positions.forEach(function (p) { floating += floatingPnl(p, qm); });
+  var equity = acct.cash;
+  acct.positions.forEach(function (p) { equity += markValue(p, qm); });
+  $('statEquity').textContent = fmtMoney(equity);
+  $('statAvail').textContent = fmtMoney(acct.cash - used);
+  $('statMargin').textContent = fmtMoney(used);
+  var flEl = $('statFloating');
+  flEl.textContent = fmtMoney(floating);
+  flEl.className = 'v ' + (floating > 0 ? 'pos' : floating < 0 ? 'neg' : '');
+  var pnlEl = $('statPnl');
+  var total = acct.realized + floating;
+  pnlEl.textContent = fmtMoney(total);
+  pnlEl.className = 'v ' + (total > 0 ? 'pos' : total < 0 ? 'neg' : '');
+  $('posCount').textContent = acct.positions.length ? '(' + acct.positions.length + ')' : '';
+  renderPositions(qm, sm);
+  renderTrades();
+  renderGreeks(qm, sm);
+}
+
+function renderGreeks(qm, sm) {
+  var acct = state.acct;
+  var d = 0, th = 0, v = 0, n = 0;
+  acct.positions.forEach(function (p) {
+    var S = sm[p.underlying] || p.S0;
+    p.legs.forEach(function (l) {
+      var q = qm[l.contract];
+      var mid = q ? midOf(q) : l.price;
+      if (mid === null || mid <= 0) return;
+      var T = (l.dte || 0) / 365;
+      if (T <= 0) return;
+      var sigma = impliedVol(l.cp, mid, S, l.strike, T);
+      if (sigma === null) return;
+      var g = bsGreeks(l.cp, S, l.strike, T, sigma);
+      var dir = (l.side === 'buy' ? 1 : -1) * p.qty * MULT;
+      d += g.delta * dir;
+      th += g.theta / 252 * dir;
+      v += g.vega * 0.01 * dir;
+      n++;
+    });
+  });
+  $('gDelta').textContent = n ? d.toFixed(0) : '--';
+  $('gTheta').textContent = n ? fmtMoney(th) : '--';
+  $('gVega').textContent = n ? fmtMoney(v) : '--';
+}
+
+function renderPositions(qm, sm) {
+  var acct = state.acct;
+  var list = $('posList');
+  if (!acct.positions.length) { list.innerHTML = '<div class="empty">暂无持仓</div>'; return; }
+  var html = '';
+  acct.positions.forEach(function (p) {
+    var fl = floatingPnl(p, qm);
+    var takeProfit = p.premiumFlow > 0 && fl >= 0.5 * p.premiumFlow;
+    var expired = p.legs.length && p.legs[0].expiry <= todayStr();
+    html += '<div class="pos"><div class="top"><b>' + esc(legsText(p.legs)) + ' ×' + p.qty + '张</b>'
+      + '<span>' + (fl >= 0 ? '+' : '') + fmtMoney(fl) + '</span></div>'
+      + '<div class="nums"><span>到期 ' + p.legs[0].expiry + '</span><span>权利金流 <b>' + fmtMoney(p.premiumFlow) + '</b></span><span>保证金 <b>' + fmtMoney(p.margin) + '</b></span></div>'
+      + (takeProfit ? '<div class="hint">✓ 已达到权利金 50% 止盈线，可考虑平仓了结</div>' : '')
+      + '<div class="rowbtns"><button class="btn" data-close="' + p.id + '">平仓</button>'
+      + (expired ? '<button class="btn gold" data-settle="' + p.id + '">到期结算</button>' : '')
+      + '</div></div>';
+  });
+  list.innerHTML = html;
+}
+
+function renderTrades() {
+  var acct = state.acct;
+  var list = $('tradeList');
+  if (!acct.trades.length) { list.innerHTML = '<div class="empty">暂无成交记录</div>'; return; }
+  var html = '';
+  acct.trades.forEach(function (t) {
+    html += '<div class="trade-row"><span>' + t.time + ' · ' + t.kind + ' · ' + esc(t.text) + '</span><span class="amt ' + (t.amount >= 0 ? 'pos' : 'neg') + '">' + t.amountTxt + '</span></div>';
+  });
+  list.innerHTML = html;
+}
+
+function closePosition(id) {
+  var acct = state.acct;
+  var idx = -1;
+  for (var i = 0; i < acct.positions.length; i++) {
+    if (acct.positions[i].id === id) { idx = i; break; }
+  }
+  if (idx < 0) return;
+  var pos = acct.positions[idx];
+  var cf = closeFlow(pos, quoteMap());
+  if (cf === null) { alert('某腿暂无报价，无法平仓'); return; }
+  var fees = closeFees(pos);
+  var realized = pos.premiumFlow + cf - fees;
+  acct.cash += cf - fees;
+  acct.realized += realized;
+  acct.positions.splice(idx, 1);
+  acct.trades.unshift({
+    time: todayStr(), kind: '平仓',
+    text: legsText(pos.legs) + ' ×' + pos.qty + '张',
+    amount: realized, amountTxt: fmtMoney(realized)
+  });
+  saveAcct();
+  refreshAccount();
+  alert('已平仓，实现盈亏 ' + fmtMoney(realized));
+}
+
+function settlePosition(id) {
+  var acct = state.acct;
+  var idx = -1;
+  for (var i = 0; i < acct.positions.length; i++) {
+    if (acct.positions[i].id === id) { idx = i; break; }
+  }
+  if (idx < 0) return;
+  var pos = acct.positions[idx];
+  var ST = spotMap()[pos.underlying] || pos.S0;
+  var sv = settleValue(pos, ST);
+  var realized = pos.premiumFlow + sv;
+  acct.cash += sv;
+  acct.realized += realized;
+  acct.positions.splice(idx, 1);
+  acct.trades.unshift({
+    time: todayStr(), kind: '到期结算',
+    text: legsText(pos.legs) + ' ×' + pos.qty + '张（标的收盘 ' + ST + '）',
+    amount: realized, amountTxt: fmtMoney(realized)
+  });
+  saveAcct();
+  refreshAccount();
+  alert('已结算，实现盈亏 ' + fmtMoney(realized));
+}
+
+function resetAccount() {
+  if (!confirm('将清空全部持仓与成交记录，恢复虚拟资金 ¥1,000,000，确定吗？')) return;
+  state.acct = newAccount();
+  saveAcct();
+  refreshAccount();
+  alert('账户已重置');
+}
+
+// ---- 到期损益图（canvas，含 ±1σ 正态分布带）----
+function drawPayoff(curve, S0, moveRange) {
+  var canvas = $('payoffCanvas');
+  if (!curve || !curve.length || !canvas) return;
+  var ctx = canvas.getContext('2d');
+  var W = canvas.width, H = canvas.height;
+  var pad = 10;
+  ctx.clearRect(0, 0, W, H);
+  var xs = curve.map(function (p) { return p.s; });
+  var ys = curve.map(function (p) { return p.pnl; });
+  var xMin = Math.min.apply(null, xs), xMax = Math.max.apply(null, xs);
+  var yMin = Math.min.apply(null, ys.concat([0])), yMax = Math.max.apply(null, ys.concat([0]));
+  if (yMax - yMin < 1) { yMax = yMin + 1; }
+  function X(x) { return pad + (x - xMin) / (xMax - xMin) * (W - 2 * pad); }
+  function Y(y) { return H - pad - (y - yMin) / (yMax - yMin) * (H - 2 * pad); }
+  ctx.strokeStyle = '#243044'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(pad, Y(0)); ctx.lineTo(W - pad, Y(0)); ctx.stroke();
+  ctx.strokeStyle = '#f5a623'; ctx.lineWidth = 2;
+  ctx.beginPath();
+  curve.forEach(function (p, i) {
+    if (i === 0) ctx.moveTo(X(p.s), Y(p.pnl)); else ctx.lineTo(X(p.s), Y(p.pnl));
+  });
+  ctx.stroke();
+  var near = curve.reduce(function (a, b) { return Math.abs(b.s - S0) < Math.abs(a.s - S0) ? b : a; });
+  ctx.fillStyle = '#f5a623';
+  ctx.beginPath(); ctx.arc(X(S0), Y(near.pnl), 4, 0, 2 * Math.PI); ctx.fill();
+  if (moveRange && moveRange.half > 0) {
+    var sigP = moveRange.half;
+    var bellTop = H * 0.45;
+    var bell = function (x) {
+      var z = (x - S0) / sigP;
+      return Math.exp(-0.5 * z * z) / (sigP * Math.sqrt(2 * Math.PI));
+    };
+    var bellMax = bell(S0);
+    var BY = function (x) { return H - pad - bell(x) / bellMax * bellTop; };
+    ctx.fillStyle = 'rgba(245,166,35,0.13)';
+    ctx.beginPath();
+    ctx.moveTo(X(moveRange.low), Y(0));
+    var k, n = 40, bx;
+    for (k = 0; k <= n; k++) {
+      bx = moveRange.low + (moveRange.high - moveRange.low) * k / n;
+      ctx.lineTo(X(bx), BY(bx));
+    }
+    ctx.lineTo(X(moveRange.high), Y(0));
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#f5a623'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (var i = 0; i <= 60; i++) {
+      var x = xMin + (xMax - xMin) * i / 60;
+      if (i === 0) ctx.moveTo(X(x), BY(x)); else ctx.lineTo(X(x), BY(x));
+    }
+    ctx.stroke();
+    ctx.setLineDash([4, 4]);
+    [moveRange.low, moveRange.high].forEach(function (v) {
+      ctx.beginPath(); ctx.moveTo(X(v), pad); ctx.lineTo(X(v), H - pad); ctx.stroke();
+    });
+    ctx.setLineDash([]);
+    ctx.font = '11px sans-serif';
+    ctx.fillStyle = '#f5a623';
+    ctx.textAlign = 'left';
+    ctx.fillText(moveRange.low.toFixed(3), X(moveRange.low) + 2, pad + 13);
+    ctx.textAlign = 'right';
+    ctx.fillText(moveRange.high.toFixed(3), X(moveRange.high) - 2, pad + 13);
+    if (X(moveRange.high) - X(moveRange.low) > 70) {
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#9fb0c3';
+      ctx.fillText('68%', X(S0), pad + 13);
+    }
+    ctx.textAlign = 'left';
+  }
+}
+
+// ---- 事件绑定与初始化 ----
+function switchTab(tab) {
+  state.tab = tab;
+  document.querySelectorAll('.tab-btn').forEach(function (b) {
+    b.classList.toggle('on', b.getAttribute('data-tab') === tab);
+  });
+  $('tab-trade').style.display = tab === 'trade' ? '' : 'none';
+  $('tab-pos').style.display = tab === 'pos' ? '' : 'none';
+  $('tab-trades').style.display = tab === 'trades' ? '' : 'none';
+  if (tab === 'pos' || tab === 'trades') refreshAccount();
+}
+
+function init() {
+  loadAcct();
+  document.querySelectorAll('.tab-btn').forEach(function (b) {
+    b.addEventListener('click', function () { switchTab(b.getAttribute('data-tab')); });
+  });
+  $('etfChips').addEventListener('click', function (e) {
+    var t = e.target.closest('[data-code]');
+    if (!t) return;
+    state.etfCode = t.getAttribute('data-code');
+    state.expiry = '';
+    state.ticketLegs = [];
+    applyChainData(state.chainData, state.chainSource, state.asOf);
+  });
+  $('expiryChips').addEventListener('click', function (e) {
+    var t = e.target.closest('[data-expiry]');
+    if (!t) return;
+    state.expiry = t.getAttribute('data-expiry');
+    state.ticketLegs = [];
+    renderExpiryChips(currentExpiries());
+    buildRows();
+  });
+  $('chainBody').addEventListener('click', function (e) {
+    var t = e.target.closest('[data-contract]');
+    if (!t) return;
+    onCellTap(t.getAttribute('data-contract'), t.getAttribute('data-side'));
+  });
+  document.querySelectorAll('.tpl-btn').forEach(function (b) {
+    b.addEventListener('click', function () { onTemplate(b.getAttribute('data-tpl')); });
+  });
+  $('ticketLegs').addEventListener('click', function (e) {
+    var t = e.target.closest('[data-leg]');
+    if (!t) return;
+    state.ticketLegs.splice(+t.getAttribute('data-leg'), 1);
+    buildRows();
+  });
+  $('qtyMinus').addEventListener('click', function () {
+    if (state.ticketQty > 1) { state.ticketQty--; updateTicket(); }
+  });
+  $('qtyPlus').addEventListener('click', function () {
+    if (state.ticketQty < 10) { state.ticketQty++; updateTicket(); }
+  });
+  $('btnClearTicket').addEventListener('click', function () {
+    state.ticketLegs = [];
+    buildRows();
+  });
+  $('btnSubmit').addEventListener('click', submitOrder);
+  $('btnRefresh').addEventListener('click', function () { loadChain(true); });
+  $('btnReset').addEventListener('click', resetAccount);
+  $('posList').addEventListener('click', function (e) {
+    var c = e.target.closest('[data-close]');
+    if (c) { closePosition(c.getAttribute('data-close')); return; }
+    var s = e.target.closest('[data-settle]');
+    if (s) settlePosition(s.getAttribute('data-settle'));
+  });
+  loadChain(false);
+  setInterval(function () { loadChain(true); }, 60000);
+}
+
+function currentExpiries() {
+  var etf = currentEtf();
+  if (!etf) return [];
+  var exps = [], seen = {};
+  etf.contracts.forEach(function (c) {
+    if (c.expiry && !seen[c.expiry]) { seen[c.expiry] = 1; exps.push(c.expiry); }
+  });
+  exps.sort();
+  return exps;
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+
+</script>
+</body>
+</html>
