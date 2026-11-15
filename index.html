@@ -32,6 +32,15 @@
   .tabs { display: flex; gap: 6px; margin-bottom: 12px; }
   .tab-btn { flex: 1; padding: 9px 0; text-align: center; border-radius: 8px; background: #16202e; border: 1px solid #223145; color: #9fb0c3; cursor: pointer; font-size: 14px; }
   .tab-btn.on { background: #f5a623; color: #1a1206; font-weight: 700; border-color: #f5a623; }
+  .mainnav { display: flex; gap: 8px; margin-bottom: 12px; }
+  .mainnav-btn { flex: 1; padding: 10px 0; text-align: center; border-radius: 8px; background: #16202e; border: 1px solid #223145; color: #9fb0c3; cursor: pointer; font-size: 15px; }
+  .mainnav-btn.on { background: #f5a623; color: #1a1206; font-weight: 700; border-color: #f5a623; }
+  .art-card { display: block; background: #16202e; border: 1px solid #223145; border-radius: 10px; padding: 14px; margin-bottom: 10px; color: #e6edf3; text-decoration: none; }
+  .art-card:hover { border-color: #f5a623; }
+  .art-card h3 { font-size: 16px; color: #fff; margin-bottom: 6px; }
+  .art-card .meta { font-size: 12px; color: #9fb0c3; margin-bottom: 6px; }
+  .art-card .tag { color: #f5a623; border: 1px solid #2a3a55; border-radius: 10px; padding: 1px 8px; margin-right: 6px; font-size: 11px; }
+  .art-card p { font-size: 13px; color: #c9d6e3; margin: 0; }
   .mr-band { position: relative; height: 26px; background: #101a29; border-radius: 6px; margin: 8px 0 4px; overflow: hidden; }
   .mr-band .b2 { position: absolute; top: 0; bottom: 0; background: rgba(245,166,35,.18); }
   .mr-band .b1 { position: absolute; top: 0; bottom: 0; background: rgba(245,166,35,.45); }
@@ -89,6 +98,12 @@
     <button class="btn" id="btnRefresh">刷新行情</button>
   </header>
 
+  <nav class="mainnav">
+    <button class="mainnav-btn on" data-view="sim">模拟交易</button>
+    <button class="mainnav-btn" data-view="articles">文章</button>
+  </nav>
+
+  <div id="view-sim">
   <div class="card">
     <div class="acct">
       <div class="stat"><div class="k">净值</div><div class="v" id="statEquity">--</div></div>
@@ -194,6 +209,15 @@
     <b>口径说明：</b>成交吃全价差（买入按 ask、卖出按 bid），持仓按中间价 mid=(bid+ask)/2 估值；手续费买 4 元/张、卖 5 元/张；裸卖保证金按交易所公式 ×1.1 安全系数（认购/认沽保证金 = [结算价 + Max(12%×标的收盘价 − 虚值额，7%×标的收盘价)] × 10000，认沽另取与标的收盘价较小值；结算价以最新价代理），价差按最大亏损计保证金；Greeks 本地 BS 算（r=2%，sigma 用合约 mid 反推 IV，θ 年化除以 252 折日损）；1σ 区间与 POP 为 BS 估算、只作展示，不影响成交与保证金；到期按标的收盘价欧式现金结算。<br>
     <b>模拟交易 · 虚拟资金 100 万 · 非实盘 · 不构成投资建议。</b>数据先读内置 2026-11-13 收盘链，实时链（sim-chains.json）上线后自动切换。
   </footer>
+  </div>
+
+  <section id="view-articles" style="display:none">
+    <div class="card">
+      <h2>文章 <span class="note">同步自公众号「彪哥notes」</span></h2>
+      <div class="note" style="margin-bottom:10px">期权日报、回测与新手系列，点击卡片阅读原文。</div>
+      <div id="articleList"><div class="empty">加载中…</div></div>
+    </div>
+  </section>
 </div>
 <script>
 'use strict';
@@ -1357,10 +1381,50 @@ function switchTab(tab) {
   if (tab === 'pos' || tab === 'trades') refreshAccount();
 }
 
+// ---- 主视图切换：模拟交易 / 文章 ----
+var ARTICLES_URL = 'articles.json';
+var articlesLoaded = false;
+function switchView(view) {
+  document.querySelectorAll('.mainnav-btn').forEach(function (b) {
+    b.classList.toggle('on', b.getAttribute('data-view') === view);
+  });
+  $('view-sim').style.display = view === 'sim' ? '' : 'none';
+  $('view-articles').style.display = view === 'articles' ? '' : 'none';
+  if (view === 'articles' && !articlesLoaded) loadArticles();
+}
+function loadArticles() {
+  articlesLoaded = true;
+  fetch(ARTICLES_URL).then(function (r) {
+    if (!r.ok) throw new Error('http ' + r.status);
+    return r.json();
+  }).then(function (list) {
+    renderArticles(Array.isArray(list) ? list : []);
+  }).catch(function () { renderArticles([]); });
+}
+function renderArticles(list) {
+  var box = $('articleList');
+  if (!list.length) {
+    box.innerHTML = '<div class="empty">暂无文章，公众号新文章发布后会在这里同步更新。</div>';
+    return;
+  }
+  var html = '';
+  list.forEach(function (a) {
+    html += '<a class="art-card" href="' + esc(a.url || '#') + '" target="_blank" rel="noopener">'
+      + '<h3>' + esc(a.title || '未命名') + '</h3>'
+      + '<div class="meta"><span>' + esc(a.date || '') + '</span>'
+      + (a.category ? ' <span class="tag">' + esc(a.category) + '</span>' : '') + '</div>'
+      + (a.summary ? '<p>' + esc(a.summary) + '</p>' : '') + '</a>';
+  });
+  box.innerHTML = html;
+}
+
 function init() {
   loadAcct();
   document.querySelectorAll('.tab-btn').forEach(function (b) {
     b.addEventListener('click', function () { switchTab(b.getAttribute('data-tab')); });
+  });
+  document.querySelectorAll('.mainnav-btn').forEach(function (b) {
+    b.addEventListener('click', function () { switchView(b.getAttribute('data-view')); });
   });
   $('etfChips').addEventListener('click', function (e) {
     var t = e.target.closest('[data-code]');
