@@ -897,7 +897,8 @@ function cellHtml(c, side) {
   if (!c) return '<td class="px no">--</td>';
   var v = side === 'bid' ? c.bid : c.ask;
   if (!validQuote(c)) return '<td class="px no">' + (v ? fmtPrice(v) : '--') + '</td>';
-  var sel = state.ticketLegs.some(function (l) { return l.contract === c.contract && l.side === side; });
+  var tradeSide = side === 'bid' ? 'sell' : 'buy';
+  var sel = state.ticketLegs.some(function (l) { return l.contract === c.contract && l.side === tradeSide; });
   return '<td class="px ' + side + (sel ? ' sel' : '') + '" data-contract="' + c.contract + '" data-side="' + side + '">' + fmtPrice(v) + '</td>';
 }
 
@@ -971,16 +972,20 @@ function onCellTap(contract, side) {
   }
   if (!c || !validQuote(c)) { alert('该合约无有效报价'); return; }
   if (c.dte !== null && c.dte < 7) { alert('距到期不足 7 天，不可新开'); return; }
+  // 报价侧 -> 交易侧：点买价（bid）= 卖出，点卖价（ask）= 买入。
+  // 旧版直接存 'bid'/'ask'，下游 simCore 只认 'buy'/'sell'，导致买认沽单腿
+  // POP 0.0%、最大亏损与组合 Delta 符号全错（2026-11-16 小工具版同修）。
+  var tradeSide = side === 'bid' ? 'sell' : 'buy';
   var legs = state.ticketLegs.slice();
   var idx = -1;
   for (var j = 0; j < legs.length; j++) {
-    if (legs[j].contract === c.contract && legs[j].side === side) { idx = j; break; }
+    if (legs[j].contract === c.contract && legs[j].side === tradeSide) { idx = j; break; }
   }
   if (idx >= 0) { legs.splice(idx, 1); }
   else {
     if (legs.length >= 4) { alert('订单最多 4 条腿'); return; }
     legs.push({ contract: c.contract, cp: c.cp, strike: c.strike, expiry: c.expiry,
-      side: side, bid: c.bid, ask: c.ask, last: c.last, dte: c.dte, iv: c.iv });
+      side: tradeSide, bid: c.bid, ask: c.ask, last: c.last, dte: c.dte, iv: c.iv });
   }
   state.ticketLegs = legs;
   buildRows();
